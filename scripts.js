@@ -109,12 +109,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
           width: 330,
           height: 200
         }).toDataURL('image/jpeg');
-        
-        // 打開新標籤頁顯示圖片
-        let newTab = window.open();
-        newTab.document.body.innerHTML = `<img src="${imgSrc}" style="width:100%">`;
-
-        // 為下載鏈接創建臨時<a>元素
         let link = document.createElement('a');
         link.href = imgSrc;
         link.download = `${formattedDate}-${tool === 'front' ? '正面' : '背面'}.jpg`;
