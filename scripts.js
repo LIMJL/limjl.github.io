@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
             cropper.destroy();
           }
           cropper = new Cropper(img, {
-            aspectRatio: 79.7 / 48,
+            aspectRatio: 85.6 / 54,
             viewMode: 1,
             guides: true,
             autoCrop: true,
@@ -40,8 +40,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
             cropBoxResizable: false,
             ready() {
               cropper.setCropBoxData({
-                width: 330,
-                height: 200,
+                width: 428,
+                height: 270,
               });
             },
           });
