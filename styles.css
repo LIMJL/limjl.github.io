@@ -4,6 +4,7 @@
   padding: 20px;
   text-align: center;
   cursor: pointer;
+  margin-bottom: 10px;
 }
 .drop-zone.dragover {
   border-color: #000;
@@ -13,20 +14,25 @@
   display: none;
 }
 .result img {
-  max-width: 100%; /* Ensure the image fits within the result div */
+  max-width: 100%;
 }
 .cropped {
-  max-width: 100%; /* Adjust as needed */
-  height: auto; /* Set height to auto for maintaining aspect ratio */
-  aspect-ratio: 79.7 / 48; /* Set aspect ratio to match the crop box */
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 85.6 / 54;
 }
 .rotate-btns button {
   margin: 5px;
 }
-/* Set the cropper container to match half the size of the Taiwan health insurance card */
 .cropper-container {
-  width: 330px; /* Width of the container */
-  height: 200px; /* Height of the container */
-  max-width: 100%; /* Ensure it scales properly */
-  margin: 0 auto; /* Center align */
+  width: 100%;
+  max-width: 428px;
+  height: auto;
+  margin: 0 auto;
+}
+@media (max-width: 767px) {
+  .col-md-6 {
+    width: 100%;
+    margin-bottom: 20px;
+  }
 }
