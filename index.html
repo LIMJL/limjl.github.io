@@ -18,7 +18,7 @@
         <h1 class="text-center">證件文件照裁切工具 - 正面</h1>
         <div class="drop-zone" id="drop-zone-front">
           將圖片拖拽到此處或點擊上傳
-          <input type="file" id="file-input-front" class="hide">
+          <input type="file" id="file-input-front" class="hide" accept="image/*">
         </div>
         <div class="result mt-3 result-front"></div>
         <div class="img-result hide mt-3 img-result-front">
@@ -34,13 +34,30 @@
         <h1 class="text-center">證件文件照裁切工具 - 背面</h1>
         <div class="drop-zone" id="drop-zone-back">
           將圖片拖拽到此處或點擊上傳
-          <input type="file" id="file-input-back" class="hide">
+          <input type="file" id="file-input-back" class="hide" accept="image/*">
         </div>
         <div class="result mt-3 result-back"></div>
         <div class="img-result hide mt-3 img-result-back">
           <img class="cropped">
         </div>
         <div class="rotate-btns hide mt-3 rotate-btns-back">
+          <button class="btn btn-default rotate">旋轉</button>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <!-- 第三組裁切工具 -->
+      <div class="col-md-12">
+        <h1 class="text-center">存摺封面裁切工具</h1>
+        <div class="drop-zone" id="drop-zone-large">
+          將圖片拖拽到此處或點擊上傳
+          <input type="file" id="file-input-large" class="hide" accept="image/*">
+        </div>
+        <div class="result mt-3 result-large"></div>
+        <div class="img-result hide mt-3 img-result-large">
+          <img class="cropped">
+        </div>
+        <div class="rotate-btns hide mt-3 rotate-btns-large">
           <button class="btn btn-default rotate">旋轉</button>
         </div>
       </div>

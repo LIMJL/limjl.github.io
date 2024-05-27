@@ -23,7 +23,6 @@
 .rotate-btns button {
   margin: 5px;
 }
-/* Set the cropper container to match half the size of the Taiwan health insurance card */
 .cropper-container {
   width: 330px; /* Width of the container */
   height: 200px; /* Height of the container */

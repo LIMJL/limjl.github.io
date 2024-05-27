@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', (event) => {
-  let tools = ['front', 'back'];
+  let tools = ['front', 'back', 'large'];
   let downloadBtn = document.querySelector('.download');
   let cropperInstances = {};
 
@@ -22,12 +22,12 @@ document.addEventListener('DOMContentLoaded', (event) => {
           result.innerHTML = '';
           result.appendChild(img);
           rotateBtns.classList.remove('hide');
-          dropZone.classList.add('hide'); // Hide drop zone after uploading photo
+          dropZone.classList.add('hide');
           if (cropper) {
             cropper.destroy();
           }
           cropper = new Cropper(img, {
-            aspectRatio: 85.6 / 54,
+            aspectRatio: tool === 'large' ? 139 / 86.5 : 85.6 / 54,
             viewMode: 1,
             guides: true,
             autoCrop: true,
@@ -40,8 +40,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
             cropBoxResizable: false,
             ready() {
               cropper.setCropBoxData({
-                width: 428,
-                height: 270,
+                width: tool === 'large' ? 720 : 428,
+                height: tool === 'large' ? 448 : 270,
               });
             },
           });
@@ -56,8 +56,12 @@ document.addEventListener('DOMContentLoaded', (event) => {
     }
 
     upload.addEventListener('change', (e) => {
-      if (e.target.files.length) {
-        handleFile(e.target.files[0]);
+      const file = e.target.files[0];
+      const fileType = file.type.split('/')[0];
+      if (file && fileType === 'image') {
+        handleFile(file);
+      } else {
+        alert('請選擇圖片檔案');
       }
     });
 
@@ -86,8 +90,12 @@ document.addEventListener('DOMContentLoaded', (event) => {
       e.preventDefault();
       e.stopPropagation();
       dropZone.classList.remove('dragover');
-      if (e.dataTransfer.files.length) {
-        handleFile(e.dataTransfer.files[0]);
+      const file = e.dataTransfer.files[0];
+      const fileType = file.type.split('/')[0];
+      if (file && fileType === 'image') {
+        handleFile(file);
+      } else {
+        alert('請選擇圖片檔案');
       }
     });
 
@@ -106,12 +114,12 @@ document.addEventListener('DOMContentLoaded', (event) => {
     tools.forEach((tool) => {
       if (cropperInstances[tool]) {
         let imgSrc = cropperInstances[tool].getCroppedCanvas({
-          width: 330,
-          height: 200
+          width: tool === 'large' ? 720 : 330,
+          height: tool === 'large' ? 448 : 200
         }).toDataURL('image/jpeg');
         let link = document.createElement('a');
         link.href = imgSrc;
-        link.download = `${formattedDate}-${tool === 'front' ? '正面' : '背面'}.jpg`;
+        link.download = `${formattedDate}-${tool === 'front' ? '身份證正面' : tool === 'back' ? '身份證背面' : '存摺封面'}.jpg`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
