@@ -3,68 +3,84 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>證件文件照裁切工具</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+  <title>證件文件照裁切工具 (風格重構版)</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.css" integrity="sha512-087vysR/jM0N5cp13Vlp+ZF9wx6tKbvJLwPO8Iit6J7R+n7uIMMjg37dEgexOshDmDITHYY5useeSmfD1MYiQA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <link rel="stylesheet" href="./styles.css">
-  <script src="./scripts.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.js" integrity="sha512-lR8d1BXfYQuiqoM/LeGFVtxFyspzWFTZNyYIiE5O2CcAGtTCRRUMLloxATRuLz8EmR2fYqdXYlrGh+D6TVGp3g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body>
-  <div class="container">
-    <div class="row">
-      <!-- 第一組裁切工具 -->
-      <div class="col-md-6">
-        <h1 class="text-center">證件文件照裁切工具 - 正面</h1>
-        <div class="drop-zone" id="drop-zone-front">
-          將圖片拖拽到此處或點擊上傳
-          <input type="file" id="file-input-front" class="hide" accept="image/*">
+
+  <div id="app-container">
+    <h2>證件文件照裁切工具</h2>
+
+    <div id="tool-grid">
+
+      <!-- 第一組：證件正面 -->
+      <div class="widget-container">
+        <h3>正面</h3>
+        <div class="workspace is-empty" data-tool-type="front">
+          <div class="workspace-placeholder">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+            <span>將正面圖片拖曳至此或點擊選擇</span>
+          </div>
+          <input type="file" class="file-input" accept="image/*">
         </div>
-        <div class="result mt-3 result-front"></div>
-        <div class="img-result hide mt-3 img-result-front">
-          <img class="cropped">
-        </div>
-        <div class="rotate-btns hide mt-3 rotate-btns-front">
-          <button class="btn btn-default rotate">旋轉</button>
+        <div class="controls-toolbar is-hidden">
+          <button class="toolbar-btn rotate-left" title="向左旋轉"></button>
+          <button class="toolbar-btn rotate-right" title="向右旋轉"></button>
+          <div class="separator"></div>
+          <button class="toolbar-btn copy-single" title="複製到剪貼簿"></button>
+          <button class="toolbar-btn clear-tool" title="清除此圖"></button>
         </div>
       </div>
 
-      <!-- 第二組裁切工具 -->
-      <div class="col-md-6">
-        <h1 class="text-center">證件文件照裁切工具 - 背面</h1>
-        <div class="drop-zone" id="drop-zone-back">
-          將圖片拖拽到此處或點擊上傳
-          <input type="file" id="file-input-back" class="hide" accept="image/*">
+      <!-- 第二組：證件背面 -->
+      <div class="widget-container">
+        <h3>背面</h3>
+        <div class="workspace is-empty" data-tool-type="back">
+          <div class="workspace-placeholder">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+            <span>將背面圖片拖曳至此或點擊選擇</span>
+          </div>
+          <input type="file" class="file-input" accept="image/*">
         </div>
-        <div class="result mt-3 result-back"></div>
-        <div class="img-result hide mt-3 img-result-back">
-          <img class="cropped">
-        </div>
-        <div class="rotate-btns hide mt-3 rotate-btns-back">
-          <button class="btn btn-default rotate">旋轉</button>
-        </div>
-      </div>
-    </div>
-    <div class="row">
-      <!-- 第三組裁切工具 -->
-      <div class="col-md-12">
-        <h1 class="text-center">存摺封面裁切工具</h1>
-        <div class="drop-zone" id="drop-zone-large">
-          將圖片拖拽到此處或點擊上傳
-          <input type="file" id="file-input-large" class="hide" accept="image/*">
-        </div>
-        <div class="result mt-3 result-large"></div>
-        <div class="img-result hide mt-3 img-result-large">
-          <img class="cropped">
-        </div>
-        <div class="rotate-btns hide mt-3 rotate-btns-large">
-          <button class="btn btn-default rotate">旋轉</button>
+        <div class="controls-toolbar is-hidden">
+          <button class="toolbar-btn rotate-left" title="向左旋轉"></button>
+          <button class="toolbar-btn rotate-right" title="向右旋轉"></button>
+          <div class="separator"></div>
+          <button class="toolbar-btn copy-single" title="複製到剪貼簿"></button>
+          <button class="toolbar-btn clear-tool" title="清除此圖"></button>
         </div>
       </div>
+
+      <!-- 第三組：存摺封面 -->
+      <div class="widget-container full-width">
+        <h3>存摺封面</h3>
+        <div class="workspace is-empty" data-tool-type="large">
+          <div class="workspace-placeholder">
+             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+            <span>將存摺圖片拖曳至此或點擊選擇</span>
+          </div>
+          <input type="file" class="file-input" accept="image/*">
+        </div>
+        <div class="controls-toolbar is-hidden">
+          <button class="toolbar-btn rotate-left" title="向左旋轉"></button>
+          <button class="toolbar-btn rotate-right" title="向右旋轉"></button>
+          <div class="separator"></div>
+          <button class="toolbar-btn copy-single" title="複製到剪貼簿"></button>
+          <button class="toolbar-btn clear-tool" title="清除此圖"></button>
+        </div>
+      </div>
+
     </div>
-    <div class="text-center mt-3">
-      <a class="btn btn-success download hide">下載</a>
+    
+    <!-- 全局下載按鈕 -->
+    <div class="page-actions">
+        <button id="downloadAllBtn" class="download-all-btn is-hidden">下載所有結果</button>
     </div>
+
   </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.js" integrity="sha512-lR8d1BXfYQuiqoM/LeGFVtxFyspzWFTZNyYIiE5O2CcAGtTCRRUMLloxATRuLz8EmR2fYqdXYlrGh+D6TVGp3g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="./scripts.js"></script>
 </body>
 </html>

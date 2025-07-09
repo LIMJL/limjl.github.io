@@ -61,30 +61,53 @@ h2 {
 .toolbar-btn svg { width: 22px; height: 22px; stroke: #343a40; }
 .toolbar-btn.active svg { stroke: #0056b3; }
 
-/* --- Canvas Area --- */
+/* --- Canvas Area (FINAL FIX) --- */
 #canvas-container {
     position: relative;
-    display: flex; /* Use flex to center the placeholder */
-    justify-content: center;
-    align-items: center;
+    display: block;             /* KEY CHANGE: Use simple block display to avoid layout conflicts */
     background-color: #fff;
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     border: 1px solid #ddd;
-    overflow: hidden; /* Hide anything that might stick out */
-}
-#canvas {
+    overflow: auto;             /* Allow scrolling */
+    max-height: 75vh;
+    height: 450px;
     cursor: crosshair;
-    display: block;
-    background-color: transparent; /* Canvas itself is transparent */
 }
+
+/* ADDED: Hide scrollbars for a cleaner look */
+#canvas-container::-webkit-scrollbar {
+    display: none;
+}
+#canvas-container {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* ADDED: Panning cursor styles */
+#canvas-container.is-panning {
+    cursor: grab;
+}
+#canvas-container.is-panning:active {
+    cursor: grabbing;
+}
+
+
+/* --- Canvas Element (FINAL FIX) --- */
+#canvas {
+    display: block;              /* KEY CHANGE: Ensure it's a block element */
+    margin: 0 auto;              /* KEY CHANGE: Let the canvas center itself horizontally */
+    background-color: transparent;
+}
+
 #image-placeholder {
+    /* This part needs flexbox to center the placeholder text */
     position: absolute;
     top: 0; left: 0; width: 100%; height: 100%;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     color: #6c757d; cursor: pointer; text-align: center;
     border: 2px dashed #ced4da;
-    border-radius: 8px; /* Match container */
+    border-radius: 8px;
     transition: background-color 0.2s; pointer-events: none;
 }
 #canvas-container.empty #image-placeholder { pointer-events: auto; }

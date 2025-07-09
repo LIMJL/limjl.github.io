@@ -1,31 +1,170 @@
-.drop-zone {
-  border: 2px dashed #ccc;
-  border-radius: 10px;
-  padding: 20px;
-  text-align: center;
-  cursor: pointer;
+/* --- Global Styles --- */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    background-color: #f0f2f5;
+    color: #333;
+    margin: 0;
+    padding: 2rem;
+    display: flex;
+    justify-content: center;
 }
-.drop-zone.dragover {
-  border-color: #000;
-  background-color: #f0f0f0;
+
+#app-container {
+    width: 100%;
+    max-width: 1200px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
 }
-.hide {
-  display: none;
+
+h2 {
+    color: #1d2129;
+    text-align: center;
+    margin: 0;
 }
-.result img {
-  max-width: 100%; /* Ensure the image fits within the result div */
+
+h3 {
+    color: #495057;
+    text-align: center;
+    margin: 0 0 1rem 0;
+    font-size: 1.1rem;
+    font-weight: 500;
 }
-.cropped {
-  max-width: 100%; /* Adjust as needed */
-  height: auto; /* Set height to auto for maintaining aspect ratio */
-  aspect-ratio: 79.7 / 48; /* Set aspect ratio to match the crop box */
+
+/* --- Grid for Tools --- */
+#tool-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.5rem;
 }
-.rotate-btns button {
-  margin: 5px;
+
+/* --- Widget Container --- */
+.widget-container {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border: 1px solid #ddd;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
-.cropper-container {
-  width: 330px; /* Width of the container */
-  height: 200px; /* Height of the container */
-  max-width: 100%; /* Ensure it scales properly */
-  margin: 0 auto; /* Center align */
+.widget-container.full-width {
+    grid-column: 1 / -1;
 }
+
+/* --- Workspace (Dropzone & Cropper Area) --- */
+.workspace {
+    width: 100%;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s, border-color 0.3s;
+    position: relative;
+    border-radius: 8px;
+    /* === 關鍵修改：從 min-height 改為固定的 height === */
+    /* min-height: 150px;  <-- 移除這一行 */
+    height: 370px; /* <-- 為所有工作區設定一個基礎的固定高度 */
+}
+
+/* 為較大的存摺工具覆蓋一個更大的固定高度 */
+.workspace[data-tool-type="large"] {
+    height: 550px;
+}
+
+.workspace.is-empty {
+    border: 2px dashed #ced4da;
+    background-color: #fff;
+    cursor: pointer;
+}
+.workspace.is-empty:hover {
+    background-color: #f8f9fa;
+    border-color: #adb5bd;
+}
+.workspace.dragover {
+    border-color: #007bff !important;
+    background-color: #e7f3ff !important;
+}
+.workspace:not(.is-empty) {
+    background-color: #e9ecef;
+    border: 1px solid #dee2e6;
+    padding: 0; /* 移除 padding，讓 Cropper.js 填滿整個容器 */
+}
+
+.workspace-placeholder {
+    color: #6c757d;
+    text-align: center;
+    pointer-events: none;
+}
+.workspace-placeholder svg {
+    width: 50px;
+    height: 50px;
+    stroke: #adb5bd;
+    margin-bottom: 1rem;
+}
+.workspace-placeholder span {
+    display: block;
+}
+
+.file-input { display: none; }
+
+.workspace img {
+    display: block;
+    max-width: 100%;
+    /* 確保圖片高度也不會超出容器，Cropper.js 會處理剩下的 */
+    max-height: 100%;
+}
+
+/* --- Toolbar Styles --- */
+.controls-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    gap: 8px;
+    padding-top: 1rem;
+    border-top: 1px solid #eee;
+}
+
+.toolbar-btn {
+    padding: 5px 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background: #fdfdfd;
+    cursor: pointer;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 36px;
+    transition: all 0.2s ease;
+}
+.toolbar-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.toolbar-btn:hover:not(:disabled) { background-color: #f1f3f5; border-color: #b5b5b5; }
+.toolbar-btn svg { width: 20px; height: 20px; stroke: #343a40; }
+.separator { border-left: 1px solid #ccc; height: 25px; margin: 0 5px; }
+
+/* --- Global Actions --- */
+.page-actions {
+    text-align: center;
+}
+.download-all-btn {
+    padding: 10px 25px;
+    font-size: 1.1rem;
+    font-weight: 500;
+    border: 1px solid #1c7b35;
+    border-radius: 5px;
+    background-color: #28a745;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.download-all-btn:hover {
+    background-color: #218838;
+    border-color: #1c6c2e;
+}
+
+/* --- Utility Class --- */
+.is-hidden { display: none !important; }

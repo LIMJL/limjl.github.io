@@ -28,6 +28,12 @@ let lastMouseX = 0, lastMouseY = 0;
 let history = [];
 let historyIndex = -1;
 
+// Panning/Dragging Variables
+let isSpacePressed = false;
+let isPanning = false;
+let lastPanX = 0;
+let lastPanY = 0;
+
 // --- DOM Elements ---
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
@@ -46,6 +52,9 @@ const highlighterBtn = document.getElementById('highlighterBtn');
 const circleMenu = document.getElementById('circleMenu');
 const textMenu = document.getElementById('textMenu');
 const arrowMenu = document.getElementById('arrowMenu');
+const ellipseBtn = document.getElementById('ellipseBtn');
+const rectBtn = document.getElementById('rectBtn');
+
 
 // --- Initialization ---
 function initialize() {
@@ -77,6 +86,7 @@ function setupMenus() {
     arrowMenu.innerHTML = `<button class="close-btn" onclick="hideAllMenus()" title="關閉">×</button><label><input type="radio" name="arrowStyle" value="classic" checked><svg width="32" height="16"><line x1="2" y1="8" x2="28" y2="8" stroke="#888" stroke-width="3"/><polygon points="28,8 22,5 22,11" fill="#888"/></svg>經典</label><label><input type="radio" name="arrowStyle" value="curve"><svg width="32" height="16"><path d="M2,14 Q16,2 28,8" fill="none" stroke="#888" stroke-width="3"/><polygon points="28,8 22,5 22,11" fill="#888"/></svg>彎曲</label><label><input type="radio" name="arrowStyle" value="chalk-brush"><svg width="32" height="16" viewBox="0 0 32 16"><path d="M2,14 C10,4 20,4 28,8" fill="none" stroke="#888" stroke-width="2.5" stroke-linecap="round"/><path d="M22,5 L28,8 L22,11" fill="none" stroke="#888" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>曲線筆刷</label><label><input type="radio" name="arrowStyle" value="hatched"><svg width="32" height="16" viewBox="0 0 32 16"><path d="M2,6 L22,6 L22,4 L30,8 L22,12 L22,10 L2,10 Z" fill="none" stroke="#888" stroke-width="1.5"/><line x1="4" y1="12" x2="10" y2="4" stroke="#888" stroke-width="1"/><line x1="8" y1="12" x2="14" y2="4" stroke="#888" stroke-width="1"/><line x1="12" y1="12" x2="18" y2="4" stroke="#888" stroke-width="1"/></svg>斜線填充</label><label><input type="radio" name="arrowStyle" value="blocky"><svg width="32" height="16" viewBox="0 0 32 16"><path d="M2,6 L22,6 L22,4 L30,8 L22,12 L22,10 L2,10 Z" fill="none" stroke="#888" stroke-width="2"/></svg>空心區塊</label>`;
 }
 
+// --- Event Listeners Setup (Robust Version) ---
 function setupEventListeners() {
     canvasContainer.addEventListener('click', () => { if (canvasContainer.classList.contains('empty') && !isAnyMenuVisible()) imgInput.click(); });
     imgInput.addEventListener('change', e => handleFile(e.target.files[0]));
@@ -87,13 +97,13 @@ function setupEventListeners() {
     numberBtn.addEventListener('contextmenu', e => { if (numberBtn.classList.contains("active")) { e.preventDefault(); showCircleMenu(e); } });
     textBtn.addEventListener('contextmenu', e => { if (textBtn.classList.contains("active")) { e.preventDefault(); showTextMenu(e); } });
     arrowBtn.addEventListener('contextmenu', e => { if (arrowBtn.classList.contains("active")) { e.preventDefault(); showArrowMenu(e); } });
-    
+
     document.addEventListener('mousedown', e => {
         const isClickingOnMenu = [circleMenu, textMenu, arrowMenu, moveNumberInput].some(menu => menu.contains(e.target));
-        const isClickingOnButton = [clearBtn, numberBtn, textBtn, arrowBtn, undoBtn, redoBtn].some(btn => btn.contains(e.target));
+        const isClickingOnButton = [clearBtn, numberBtn, textBtn, arrowBtn, undoBtn, redoBtn, ellipseBtn, rectBtn].some(btn => btn.contains(e.target));
         if (!isClickingOnMenu && !isClickingOnButton) hideAllMenus();
     });
-    
+
     circleMenu.addEventListener('input', e => {
         if (e.target.id === 'menuNumberSize') {
             const newSize = parseInt(e.target.value, 10);
@@ -108,7 +118,7 @@ function setupEventListeners() {
              if(selected && selected.type === 'number' && selected.bgColor) { selected.bgColor = numberBgColor; draw(); }
         }
     });
-    circleMenu.addEventListener('change', e => { 
+    circleMenu.addEventListener('change', e => {
         if (e.target.id === 'numberBgCheckbox') {
             numberBgEnabled = e.target.checked;
             document.getElementById('numberBgColorPicker').disabled = !e.target.checked;
@@ -144,22 +154,281 @@ function setupEventListeners() {
     arrowMenu.addEventListener('change', e => { if (e.target.name === 'arrowStyle') arrowStyle = e.target.value; });
     colorPicker.addEventListener('input', function() { if (mode !== 'highlighter') { color = this.value; if (selected) { selected.color = color; draw(); saveState(); } } });
 
+    // Only mousedown and contextmenu are now permanently on the canvas
     canvas.addEventListener('mousedown', onCanvasMouseDown);
     canvas.addEventListener('contextmenu', onCanvasContextMenu);
-    canvas.addEventListener('mousemove', onCanvasMouseMove);
-    canvas.addEventListener('mouseup', onCanvasMouseUp);
-    canvas.addEventListener('mouseleave', onCanvasMouseLeave);
+
+    // Keydown/keyup listeners remain on the window
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
 }
 
+// Helper to get correct coordinates
+function getCanvasCoordinates(e) {
+    const rect = canvasContainer.getBoundingClientRect();
+    const x = e.clientX - rect.left + canvasContainer.scrollLeft;
+    const y = e.clientY - rect.top + canvasContainer.scrollTop;
+    return { x, y };
+}
+
+// --- Mouse Event Handlers (Refactored for global listeners) ---
+
+function onCanvasMouseDown(e) {
+    if (e.button !== 0 || isAnyMenuVisible()) return;
+
+    if (isSpacePressed) {
+        e.preventDefault(); // *** THIS IS THE FIX *** Prevent browser's default drag-to-scroll
+        isPanning = true;
+        lastPanX = e.clientX;
+        lastPanY = e.clientY;
+        // Add global listeners for robust pan handling
+        window.addEventListener('mousemove', handleGlobalMouseMove);
+        window.addEventListener('mouseup', handleGlobalMouseUp);
+        return;
+    }
+
+    // Add global listeners for robust drag/draw handling
+    window.addEventListener('mousemove', handleGlobalMouseMove);
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+
+    const { x, y } = getCanvasCoordinates(e);
+
+    selected = null;
+    hideAllMenus();
+
+    // Check for hit on existing annotations
+    for (let i = annotations.length - 1; i >= 0; i--) {
+        if (hitTest(annotations[i], x, y)) {
+            const ann = annotations[i];
+            annotations.splice(i, 1);
+            annotations.push(ann);
+            dragging = ann;
+            offsetX = x - dragging.x;
+            offsetY = y - dragging.y;
+            selected = dragging;
+            setMode(selected.type);
+            if(selected.type !== 'highlighter') { color = selected.color || '#ff0000'; colorPicker.value = color; } else { colorPicker.value = selected.color; }
+            if (selected.type === 'arrow') arrowStyle = selected.style;
+            if (selected.type === 'text') { fontFamily = selected.font; fontSize = selected.size; }
+            if (selected.type === 'number') { numberSize = selected.size; }
+            draw();
+            return;
+        }
+    }
+
+    // Start drawing a new shape
+    drawing = true;
+    startX = x;
+    startY = y;
+    shiftPressed = e.shiftKey;
+
+    if (mode === 'highlighter') {
+        highlighterPath = [{ x, y }];
+    } else if (['arrow', 'ellipse', 'rect'].includes(mode)) {
+        tempShape = { type: mode, x: startX, y: startY, color: colorPicker.value, style: arrowStyle };
+    } else if (mode === 'text') {
+        drawing = false; // Text is handled differently
+        showTextInput(x, y);
+    } else if (mode === 'number') {
+        drawing = false; // Numbers are placed on click, not drag
+        const numberAnnotations = annotations.filter(a => a.type === 'number');
+        const newAnnotation = { type: 'number', x, y, num: numberAnnotations.length + 1, color: colorPicker.value, size: numberSize };
+        if (numberBgEnabled) newAnnotation.bgColor = numberBgColor;
+        annotations.push(newAnnotation);
+        draw();
+        saveState();
+    }
+}
+
+function handleGlobalMouseMove(e) {
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+
+    if (isPanning) {
+        const dx = e.clientX - lastPanX;
+        const dy = e.clientY - lastPanY;
+        canvasContainer.scrollLeft -= dx;
+        canvasContainer.scrollTop -= dy;
+        lastPanX = e.clientX;
+        lastPanY = e.clientY;
+        return;
+    }
+
+    if (!drawing && !dragging) return;
+
+    const { x, y } = getCanvasCoordinates(e);
+    shiftPressed = e.shiftKey;
+
+    if (dragging) {
+        let dx = x - offsetX - dragging.x;
+        let dy = y - offsetY - dragging.y;
+        
+        if(dragging.type === 'highlighter' && dragging.path) {
+            dragging.path.forEach(p => {
+                p.x += dx;
+                p.y += dy;
+            });
+        }
+        dragging.x += dx;
+        dragging.y += dy;
+        
+        if (dragging.x2) dragging.x2 += dx;
+        if (dragging.y2) dragging.y2 += dy;
+        
+        draw();
+    } else if (drawing) {
+        if (mode === 'highlighter') {
+            highlighterPath.push({ x, y });
+            draw();
+        } else {
+            draw(); // Redraw base image + annotations
+            ctx.save();
+            ctx.strokeStyle = colorPicker.value;
+            ctx.lineWidth = 2.5;
+            let dx = x - startX, dy = y - startY;
+
+            if (mode === 'ellipse') {
+                let rx = Math.abs(dx / 2), ry = Math.abs(dy / 2);
+                let cx = startX + dx / 2, cy = startY + dy / 2;
+                if (shiftPressed) rx = ry = Math.max(rx, ry);
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI);
+                ctx.stroke();
+            } else if (mode === 'rect') {
+                if (shiftPressed) {
+                    let side = Math.max(Math.abs(dx), Math.abs(dy));
+                    dx = side * Math.sign(dx || 1);
+                    dy = side * Math.sign(dy || 1);
+                }
+                ctx.strokeRect(startX, startY, dx, dy);
+            } else if (mode === 'arrow' && tempShape) {
+                tempShape.x2 = x;
+                tempShape.y2 = y;
+                drawArrow(tempShape, true);
+            }
+            ctx.restore();
+        }
+    }
+}
+
+function handleGlobalMouseUp(e) {
+    // Always remove the global listeners
+    window.removeEventListener('mousemove', handleGlobalMouseMove);
+    window.removeEventListener('mouseup', handleGlobalMouseUp);
+
+    if (isPanning) {
+        isPanning = false;
+        return;
+    }
+
+    if (dragging) {
+        dragging = null;
+        saveState();
+        return;
+    }
+
+    if (!drawing) return;
+    
+    const { x, y } = getCanvasCoordinates(e);
+
+    drawing = false;
+    if (mode === 'highlighter') {
+        finalizeHighlighterPath();
+    } else {
+        let dx = x - startX;
+        let dy = y - startY;
+
+        if (Math.hypot(dx, dy) < 5) {
+            tempShape = null;
+            draw();
+            return;
+        }
+
+        if (mode === 'ellipse') {
+            let rx = Math.abs(dx / 2), ry = Math.abs(dy / 2);
+            if (shiftPressed) rx = ry = Math.max(rx, ry);
+            annotations.push({ type: 'ellipse', x: startX + dx / 2, y: startY + dy / 2, rx, ry, color: colorPicker.value });
+        } else if (mode === 'rect') {
+            if (shiftPressed) {
+                let side = Math.max(Math.abs(dx), Math.abs(dy));
+                dx = side * Math.sign(dx || 1);
+                dy = side * Math.sign(dy || 1);
+            }
+            annotations.push({ type: 'rect', x: startX, y: startY, w: dx, h: dy, color: colorPicker.value });
+        } else if (mode === 'arrow' && tempShape) {
+            annotations.push({ ...tempShape, x2: x, y2: y });
+        }
+    }
+    tempShape = null;
+    saveState();
+    draw();
+}
+
+function onCanvasContextMenu(e) {
+    e.preventDefault();
+    if(isAnyMenuVisible()) {
+        hideAllMenus();
+        return;
+    }
+    const { x, y } = getCanvasCoordinates(e);
+    for (let i = annotations.length - 1; i >= 0; i--) {
+        if (hitTest(annotations[i], x, y)) {
+            if (annotations[i].type === 'number') {
+                showMoveNumberInput(e, annotations[i]);
+                return;
+            }
+        }
+    }
+}
+
+function onKeyDown(e) {
+    if ((e.key === ' ' || e.code === 'Space') && !isSpacePressed) {
+        if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT') return;
+        e.preventDefault();
+        isSpacePressed = true;
+        if (!isPanning) {
+            canvasContainer.classList.add('is-panning');
+        }
+    }
+
+    if (e.key === 'Shift') shiftPressed = true;
+    if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'z') { undo(); e.preventDefault(); }
+        if (e.key === 'y') { redo(); e.preventDefault(); }
+    }
+    if ((e.key === 'Delete' || e.key === 'Backspace') && selected && document.activeElement.tagName !== 'INPUT' && !document.activeElement.isContentEditable) {
+        const idx = annotations.indexOf(selected);
+        if (idx > -1) {
+            const type = selected.type;
+            annotations.splice(idx, 1);
+            selected = null;
+            if (type === 'number') reindexNumbers();
+            draw();
+            saveState();
+        }
+    }
+}
+
+function onKeyUp(e) {
+    if (e.key === ' ' || e.code === 'Space') {
+        isSpacePressed = false;
+        isPanning = false; // Ensure panning stops
+        canvasContainer.classList.remove('is-panning');
+    }
+    if (e.key === 'Shift') shiftPressed = false;
+}
+
 function setMode(m) {
-    if (drawing) onCanvasMouseUp({ clientX: lastMouseX, clientY: lastMouseY });
+    if (drawing) {
+        handleGlobalMouseUp({ clientX: lastMouseX, clientY: lastMouseY });
+    }
     mode = m;
     hideAllMenus();
     textInputBox.style.display = "none";
     document.querySelectorAll('.toolbar button.active').forEach(b => b.classList.remove('active'));
-    document.getElementById({ 'number': 'numberBtn', 'ellipse': 'ellipseBtn', 'rect': 'rectBtn', 'arrow': 'arrowBtn', 'highlighter': 'highlighterBtn', 'text': 'textBtn' }[m])?.classList.add('active');
+    
+    const btn = document.getElementById({ 'number': 'numberBtn', 'ellipse': 'ellipseBtn', 'rect': 'rectBtn', 'arrow': 'arrowBtn', 'highlighter': 'highlighterBtn', 'text': 'textBtn' }[m]);
+    if(btn) btn.classList.add('active');
     
     if (m === 'highlighter') { if (colorPicker.value === color) colorPicker.value = '#ffff00'; }
     else { colorPicker.value = color; }
@@ -219,7 +488,7 @@ function showTextMenu(e) {
 function showArrowMenu(e) { hideAllMenus(); arrowMenu.style.display = "block"; let rect = arrowBtn.getBoundingClientRect(); arrowMenu.style.left = (rect.left + window.scrollX) + "px"; arrowMenu.style.top = (rect.bottom + window.scrollY + 4) + "px"; const radio = arrowMenu.querySelector(`input[value="${arrowStyle}"]`); if(radio) radio.checked = true; }
 function showMoveNumberInput(e, ann) {
     hideAllMenus();
-    const menuRect = canvas.getBoundingClientRect();
+    const menuRect = canvasContainer.getBoundingClientRect();
     moveNumberInput.style.left = `${e.clientX - menuRect.left + 15}px`;
     moveNumberInput.style.top = `${e.clientY - menuRect.top + 15}px`;
     moveNumberInput.style.display = 'block';
@@ -256,52 +525,30 @@ function showMoveNumberInput(e, ann) {
 
 function reindexNumbers() { const numberAnnotations = annotations.filter(a => a.type === 'number'); numberAnnotations.forEach((ann, index) => { ann.num = index + 1; }); draw(); }
 function finalizeHighlighterPath() { if (highlighterPath.length > 1) { annotations.unshift({ type: 'highlighter', path: [...highlighterPath], color: colorPicker.value, lineWidth: 20 }); saveState();} highlighterPath = []; }
-function onCanvasContextMenu(e) { e.preventDefault(); if(isAnyMenuVisible()) { hideAllMenus(); return; } const rect = canvas.getBoundingClientRect(); const x = e.clientX - rect.left, y = e.clientY - rect.top; for (let i = annotations.length - 1; i >= 0; i--) { if (hitTest(annotations[i], x, y)) { if (annotations[i].type === 'number') { showMoveNumberInput(e, annotations[i]); return; } } } }
-function onCanvasMouseDown(e) {
-    if (e.button !== 0 || isAnyMenuVisible()) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left, y = e.clientY - rect.top;
-    selected = null;
-    hideAllMenus();
-    
-    for (let i = annotations.length - 1; i >= 0; i--) {
-        if (hitTest(annotations[i], x, y)) {
-            const ann = annotations[i];
-            annotations.splice(i, 1);
-            annotations.push(ann); 
-            dragging = ann;
-            offsetX = x - dragging.x; offsetY = y - dragging.y;
-            selected = dragging;
-            setMode(selected.type);
-            if(selected.type !== 'highlighter') { color = selected.color || '#ff0000'; colorPicker.value = color; } else { colorPicker.value = selected.color; }
-            if (selected.type === 'arrow') arrowStyle = selected.style;
-            if (selected.type === 'text') { fontFamily = selected.font; fontSize = selected.size; }
-            if (selected.type === 'number') { numberSize = selected.size; }
-            draw();
-            return;
-        }
-    }
-    
-    drawing = true; startX = x; startY = y; shiftPressed = e.shiftKey;
-    if (mode === 'highlighter') { highlighterPath = [{x,y}];
-    } else if (['arrow', 'ellipse', 'rect'].includes(mode)) { tempShape = { type: mode, x: startX, y: startY, color: colorPicker.value, style: arrowStyle };
-    } else if (mode === 'text') { drawing = false; showTextInput(x, y);
-    } else if (mode === 'number') {
-        drawing = false;
-        const numberAnnotations = annotations.filter(a => a.type === 'number');
-        const newAnnotation = { type: 'number', x, y, num: numberAnnotations.length + 1, color: colorPicker.value, size: numberSize };
-        if (numberBgEnabled) newAnnotation.bgColor = numberBgColor;
-        annotations.push(newAnnotation);
-        draw();
-        saveState();
-    }
+
+function showTextInput(x, y) { 
+    textInputBox.style.display = "block"; 
+    textInputBox.value = ""; 
+    const containerRect = canvasContainer.getBoundingClientRect();
+    textInputBox.style.left = `${x - canvasContainer.scrollLeft}px`; 
+    textInputBox.style.top = `${y - canvasContainer.scrollTop}px`;
+    textInputBox.style.fontFamily = fontFamily; 
+    textInputBox.style.fontSize = `${fontSize}px`; 
+    textInputBox.style.color = colorPicker.value; 
+    textInputBox.focus(); 
+    textInputBox.onkeydown = function(ev) { 
+        if (ev.key === "Enter" && textInputBox.value.trim()) { 
+            const newAnnotation = {type: 'text', x, y, text: textInputBox.value, color: colorPicker.value, font: fontFamily, size: fontSize }; 
+            if (textBgEnabled) newAnnotation.bgColor = textBgColor; 
+            annotations.push(newAnnotation); 
+            textInputBox.style.display = "none"; 
+            draw(); 
+            saveState(); 
+        } else if (ev.key === "Escape") { 
+            textInputBox.style.display = "none"; 
+        } 
+    }; 
 }
-function onCanvasMouseMove(e) { lastMouseX = e.clientX; lastMouseY = e.clientY; if (!drawing && !dragging) return; const rect = canvas.getBoundingClientRect(); const x = e.clientX - rect.left, y = e.clientY - rect.top; shiftPressed = e.shiftKey; if (dragging) { const dx = x - offsetX - dragging.x; const dy = y - offsetY - dragging.y; dragging.x += dx; dragging.y += dy; if (dragging.type === 'highlighter' && dragging.path) { dragging.path.forEach(p => { p.x += dx; p.y += dy; }); } draw(); } else if (drawing) { if (mode === 'highlighter') { highlighterPath.push({x, y}); draw(); } else { draw(); ctx.save(); ctx.strokeStyle = colorPicker.value; ctx.lineWidth = 2.5; let dx = x - startX, dy = y - startY; if (mode === 'ellipse') { let rx = Math.abs(dx / 2), ry = Math.abs(dy / 2); let cx = startX + dx / 2, cy = startY + dy / 2; if (shiftPressed) rx = ry = Math.max(rx, ry); ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI); ctx.stroke(); } else if (mode === 'rect') { if (shiftPressed) { let side = Math.max(Math.abs(dx), Math.abs(dy)); dx = side * Math.sign(dx || 1); dy = side * Math.sign(dy || 1); } ctx.strokeRect(startX, startY, dx, dy); } else if (mode === 'arrow' && tempShape) { tempShape.x2 = x; tempShape.y2 = y; drawArrow(tempShape, true); } ctx.restore(); } } }
-function onCanvasMouseUp(e) { if (dragging) { dragging = null; saveState(); return; } if (!drawing) return; drawing = false; if (mode === 'highlighter') { finalizeHighlighterPath(); } else { const rect = canvas.getBoundingClientRect(); const x = e.clientX - rect.left, y = e.clientY - rect.top; let dx = x - startX, dy = y - startY; if (Math.hypot(dx, dy) < 5 && mode !== 'number') { tempShape = null; draw(); return; } if (mode === 'ellipse') { let rx = Math.abs(dx / 2), ry = Math.abs(dy / 2); if (shiftPressed) rx = ry = Math.max(rx, ry); annotations.push({ type: 'ellipse', x: startX + dx / 2, y: startY + dy / 2, rx, ry, color: colorPicker.value }); } else if (mode === 'rect') { if (shiftPressed) { let side = Math.max(Math.abs(dx), Math.abs(dy)); dx = side * Math.sign(dx || 1); dy = side * Math.sign(dy || 1); } annotations.push({ type: 'rect', x: startX, y: startY, w: dx, h: dy, color: colorPicker.value }); } else if (mode === 'arrow' && tempShape) { annotations.push({ ...tempShape, x2: x, y2: y }); } tempShape = null; saveState(); } draw(); }
-function onCanvasMouseLeave() { if (drawing) onCanvasMouseUp({ clientX: lastMouseX, clientY: lastMouseY }); }
-function onKeyDown(e) { if (e.key === 'Shift') shiftPressed = true; if (e.ctrlKey || e.metaKey) { if (e.key === 'z') { undo(); e.preventDefault(); } if (e.key === 'y') { redo(); e.preventDefault(); } } if ((e.key === 'Delete' || e.key === 'Backspace') && selected && document.activeElement.tagName !== 'INPUT') { const idx = annotations.indexOf(selected); if (idx > -1) { const type = selected.type; annotations.splice(idx, 1); selected = null; if (type === 'number') reindexNumbers(); else draw(); saveState(); } } }
-function onKeyUp(e) { if (e.key === 'Shift') shiftPressed = false; }
-function showTextInput(x, y) { textInputBox.style.display = "block"; textInputBox.value = ""; textInputBox.style.left = `${x + canvas.offsetLeft}px`; textInputBox.style.top = `${y + canvas.offsetTop}px`; textInputBox.style.fontFamily = fontFamily; textInputBox.style.fontSize = `${fontSize}px`; textInputBox.style.color = colorPicker.value; textInputBox.focus(); textInputBox.onkeydown = function(ev) { if (ev.key === "Enter" && textInputBox.value.trim()) { const newAnnotation = {type: 'text', x, y, text: textInputBox.value, color: colorPicker.value, font: fontFamily, size: fontSize }; if (textBgEnabled) newAnnotation.bgColor = textBgColor; annotations.push(newAnnotation); textInputBox.style.display = "none"; draw(); saveState(); } else if (ev.key === "Escape") { textInputBox.style.display = "none"; } }; }
 
 function draw() {
     requestIdleCallback(() => {
@@ -336,7 +583,7 @@ function hitTest(ann, x, y) {
     if (ann.type === 'highlighter') { for (let i = 0; i < ann.path.length - 1; i++) { if (distToSegment({x,y}, ann.path[i], ann.path[i+1]) < ann.lineWidth / 2) return true; } return false; }
     if (ann.type === 'arrow') return ann.x2 && ann.y2 ? distToSegment({ x, y }, { x: ann.x, y: ann.y }, { x: ann.x2, y: ann.y2 }) < tolerance : false;
     if (ann.type === 'number') return Math.hypot(ann.x - x, ann.y - y) < (ann.size || 18) + tolerance / 2;
-    if (ann.type === 'ellipse') return ((x - ann.x) ** 2) / ((ann.rx || 1) ** 2) + ((y - ann.y) ** 2) / ((ann.ry || 1) ** 2) <= 1.2;
+    if (ann.type === 'ellipse') { const k = ((x - ann.x) ** 2) / ((ann.rx+tolerance) ** 2) + ((y - ann.y) ** 2) / ((ann.ry+tolerance) ** 2); return k <= 1; }
     if (ann.type === 'rect') { const x1 = Math.min(ann.x, ann.x + ann.w), x2 = Math.max(ann.x, ann.x + ann.w); const y1 = Math.min(ann.y, ann.y + ann.h), y2 = Math.max(ann.y, ann.y + ann.h); return x > x1 - tolerance/2 && x < x2 + tolerance/2 && y > y1 - tolerance/2 && y < y2 + tolerance/2; }
     if (ann.type === 'text') { ctx.save(); ctx.font = `${ann.size}px ${ann.font}`; const metrics = ctx.measureText(ann.text); const padding = ann.bgColor ? 4 : 0; const w = metrics.width + padding * 2; const h = ann.size + padding; const x1 = ann.x - padding; const y1 = ann.y - padding / 2; ctx.restore(); return (x > x1 && x < x1 + w && y > y1 && y < y1 + h); }
     return false;
@@ -344,7 +591,7 @@ function hitTest(ann, x, y) {
 
 function createBrush() { const brushCanvas = document.createElement('canvas'); const brushCtx = brushCanvas.getContext('2d'); const size = 50; brushCanvas.width = size; brushCanvas.height = size; const gradient = brushCtx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2); gradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)'); gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.2)'); gradient.addColorStop(1, 'rgba(255, 255, 255, 0)'); brushCtx.fillStyle = gradient; brushCtx.fillRect(0, 0, size, size); const imageData = brushCtx.getImageData(0, 0, size, size); const pixels = imageData.data; for (let i = 0; i < pixels.length; i += 4) { if (pixels[i + 3] > 0) { const noise = (Math.random() - 0.5) * 80; pixels[i + 3] = Math.max(0, pixels[i + 3] - noise * (1 - pixels[i + 3] / 255)); } } brushCtx.putImageData(imageData, 0, 0); brushImage = new Image(); brushImage.onload = () => { isBrushReady = true; }; brushImage.src = brushCanvas.toDataURL(); }
 function handleFile(file) { if (!file) return; const reader = new FileReader(); if (file.type === 'application/json') { reader.onload = e => loadProject(JSON.parse(e.target.result)); reader.readAsText(file); } else if (file.type.startsWith('image/')) { reader.onload = e => loadImage(e.target.result); reader.readAsDataURL(file); } else { alert('不支援的檔案格式。請選擇圖片檔或 .json 專案檔。'); } }
-function loadImage(src, callback) { img = new window.Image(); img.onload = () => { canvas.width = img.width; canvas.height = img.height; canvasContainer.classList.remove('empty'); if (!callback) annotations = []; saveState(); draw(); updateClearButton(); if (callback) callback(); }; img.src = src; }
+function loadImage(src, callback) { img = new window.Image(); img.onload = () => { canvas.width = img.width; canvas.height = img.height; canvasContainer.classList.remove('empty'); if (!callback) { annotations = []; canvasContainer.scrollTop = 0; canvasContainer.scrollLeft = 0; } saveState(); draw(); updateClearButton(); if (callback) callback(); }; img.src = src; }
 function saveProject() { const fileName = prompt("請輸入專案檔名：", "my-annotation-project"); if (!fileName) return; if (!img) { alert("請先載入一張圖片才能儲存專案。"); return; } const projectData = { imageData: img.src, annotations: annotations }; const jsonString = JSON.stringify(projectData, null, 2); const blob = new Blob([jsonString], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${fileName}.json`; a.click(); URL.revokeObjectURL(url); }
 function loadProject(projectData) { if (!projectData.imageData || !projectData.annotations) { alert('無效的專案檔。'); return; } loadImage(projectData.imageData, () => { annotations = projectData.annotations; if (annotations.length > 0) { const firstAnn = annotations.find(a=>a.type !== 'highlighter'); if(firstAnn) { color = firstAnn.color || '#ff0000'; colorPicker.value = color; }} reindexNumbers(); saveState(); }); }
 function downloadImage() { const fileName = prompt("請輸入圖片檔名：", "annotated-image"); if (!fileName) return; selected = null; hideAllMenus(); draw(); requestIdleCallback(() => { canvas.toBlob(blob => { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${fileName}.png`; a.click(); URL.revokeObjectURL(url); }); }); }
@@ -364,7 +611,10 @@ function saveState() {
     if (historyIndex < history.length - 1) {
         history = history.slice(0, historyIndex + 1);
     }
-    history.push(JSON.parse(JSON.stringify(annotations)));
+    const state = JSON.stringify(annotations);
+    // Don't save if it's identical to the previous state
+    if(history.length > 0 && history[historyIndex] === state) return;
+    history.push(state);
     historyIndex = history.length - 1;
     updateUndoRedoButtons();
 }
@@ -372,7 +622,7 @@ function saveState() {
 function undo() {
     if (historyIndex > 0) {
         historyIndex--;
-        annotations = JSON.parse(JSON.stringify(history[historyIndex]));
+        annotations = JSON.parse(history[historyIndex]);
         draw();
         updateUndoRedoButtons();
     }
@@ -381,7 +631,7 @@ function undo() {
 function redo() {
     if (historyIndex < history.length - 1) {
         historyIndex++;
-        annotations = JSON.parse(JSON.stringify(history[historyIndex]));
+        annotations = JSON.parse(history[historyIndex]);
         draw();
         updateUndoRedoButtons();
     }
