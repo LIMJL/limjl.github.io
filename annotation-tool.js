@@ -155,30 +155,39 @@ function setupEventListeners() {
 
     canvas.addEventListener('mousedown', onCanvasMouseDown);
     canvas.addEventListener('contextmenu', onCanvasContextMenu);
-
-    // ▼▼▼ KEY CHANGE #1: Listen in the CAPTURE phase to intercept browser actions before they happen. ▼▼▼
+    
     window.addEventListener('keydown', onKeyDown, { capture: true }); 
     window.addEventListener('keyup', onKeyUp, { capture: true });
 }
 
+// =================================================================
+// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+//                  THIS IS THE CORRECTED FUNCTION
+// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 function getCanvasCoordinates(e) {
-    const rect = canvasContainer.getBoundingClientRect();
-    const x = e.clientX - rect.left + canvasContainer.scrollLeft;
-    const y = e.clientY - rect.top + canvasContainer.scrollTop;
+    // Get the bounding rectangle of the <canvas> element itself.
+    // This automatically accounts for any margins, padding, or scrolling.
+    const rect = canvas.getBoundingClientRect();
+    
+    // Calculate the mouse coordinates relative to the canvas's top-left corner.
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
     return { x, y };
 }
+// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+// =================================================================
 
 function onCanvasMouseDown(e) {
     if (e.button !== 0 || isAnyMenuVisible()) return;
 
     if (isSpacePressed) {
         e.preventDefault();
-        e.stopPropagation(); // Stop event from propagating further
+        e.stopPropagation(); 
         isPanning = true;
         lastPanX = e.clientX;
         lastPanY = e.clientY;
         
-        // ▼▼▼ KEY CHANGE #2: Lock the BODY scroll to prevent ANY page jump ▼▼▼
         document.body.style.overflow = 'hidden';
         
         window.addEventListener('mousemove', handleGlobalMouseMove);
@@ -237,7 +246,7 @@ function onCanvasMouseDown(e) {
 
 function handleGlobalMouseMove(e) {
     if (isPanning) {
-        e.preventDefault(); // Continue to prevent other actions like text selection
+        e.preventDefault(); 
         const dx = e.clientX - lastPanX;
         const dy = e.clientY - lastPanY;
         canvasContainer.scrollLeft -= dx;
@@ -305,7 +314,6 @@ function handleGlobalMouseUp(e) {
 
     if (isPanning) {
         isPanning = false;
-        // ▼▼▼ KEY CHANGE #3: Unlock the BODY scroll when done ▼▼▼
         document.body.style.overflow = '';
         return;
     }
@@ -405,10 +413,9 @@ function onKeyUp(e) {
         }
         isSpacePressed = false;
         canvasContainer.classList.remove('is-panning');
-        // This is a safety net in case mouseup didn't fire (e.g., mouse left window)
         if (isPanning) {
             isPanning = false;
-            document.body.style.overflow = ''; // Unlock page scroll
+            document.body.style.overflow = ''; 
             window.removeEventListener('mousemove', handleGlobalMouseMove);
             window.removeEventListener('mouseup', handleGlobalMouseUp);
         }
@@ -432,7 +439,6 @@ function setMode(m) {
     else { colorPicker.value = color; }
 }
 
-// ... (The rest of the functions from showTextInput to the end remain exactly the same)
 function isAnyMenuVisible() { return [circleMenu, textMenu, arrowMenu, moveNumberInput].some(m => m.style.display === 'block'); }
 function hideAllMenus() { [circleMenu, textMenu, arrowMenu, moveNumberInput].forEach(m => m.style.display = 'none'); }
 function showCircleMenu(e) { 
@@ -487,9 +493,12 @@ function showTextMenu(e) {
 function showArrowMenu(e) { hideAllMenus(); arrowMenu.style.display = "block"; let rect = arrowBtn.getBoundingClientRect(); arrowMenu.style.left = (rect.left + window.scrollX) + "px"; arrowMenu.style.top = (rect.bottom + window.scrollY + 4) + "px"; const radio = arrowMenu.querySelector(`input[value="${arrowStyle}"]`); if(radio) radio.checked = true; }
 function showMoveNumberInput(e, ann) {
     hideAllMenus();
-    const menuRect = canvasContainer.getBoundingClientRect();
-    moveNumberInput.style.left = `${e.clientX - menuRect.left + 15}px`;
-    moveNumberInput.style.top = `${e.clientY - menuRect.top + 15}px`;
+    const menuRect = canvas.getBoundingClientRect(); // Use canvas rect for positioning relative to it
+    const clickXOnCanvas = e.clientX - menuRect.left;
+    const clickYOnCanvas = e.clientY - menuRect.top;
+
+    moveNumberInput.style.left = `${clickXOnCanvas + 15}px`;
+    moveNumberInput.style.top = `${clickYOnCanvas + 15}px`;
     moveNumberInput.style.display = 'block';
     moveNumberInput.value = ann.num;
     moveNumberInput.focus();
@@ -528,9 +537,10 @@ function finalizeHighlighterPath() { if (highlighterPath.length > 1) { annotatio
 function showTextInput(x, y) { 
     textInputBox.style.display = "block"; 
     textInputBox.value = ""; 
-    const containerRect = canvasContainer.getBoundingClientRect();
-    textInputBox.style.left = `${x - canvasContainer.scrollLeft}px`; 
-    textInputBox.style.top = `${y - canvasContainer.scrollTop}px`;
+    const rect = canvas.getBoundingClientRect();
+    // Position the input relative to the viewport, then the container will place it correctly
+    textInputBox.style.left = `${x + rect.left - canvasContainer.getBoundingClientRect().left}px`; 
+    textInputBox.style.top = `${y + rect.top - canvasContainer.getBoundingClientRect().top}px`;
     textInputBox.style.fontFamily = fontFamily; 
     textInputBox.style.fontSize = `${fontSize}px`; 
     textInputBox.style.color = colorPicker.value; 
