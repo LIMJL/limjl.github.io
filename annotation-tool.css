@@ -1,4 +1,10 @@
 /* --- Global Styles --- */
+/* --- KEY FIX: Change height to min-height --- */
+/* This allows the body to grow taller than the viewport, enabling scrolling */
+html, body {
+    min-height: 100%;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
     background-color: #f0f2f5; /* A slightly softer gray background */
@@ -7,6 +13,8 @@ body {
     padding: 2rem; /* Add padding around the main container */
     display: flex;
     justify-content: center;
+    align-items: center; /* Center the app container vertically */
+    box-sizing: border-box; /* Important for height calculation */
 }
 
 #app-container {
@@ -16,6 +24,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 1.5rem; /* Space between elements */
+    /* Removed height properties to allow natural sizing and vertical centering */
 }
 
 h2 {
@@ -107,6 +116,7 @@ h2 {
     border: 2px dashed #ced4da;
     border-radius: 8px;
     transition: background-color 0.2s; pointer-events: none;
+    box-sizing: border-box; /* Include border in size calculation */
 }
 #canvas-container.empty #image-placeholder { pointer-events: auto; }
 #canvas-container:not(.empty) #image-placeholder { display: none; }
@@ -114,7 +124,7 @@ h2 {
 #image-placeholder svg { width: 60px; height: 60px; margin-bottom: 15px; stroke: #adb5bd; }
 
 /* --- Pop-up Inputs & Menus --- */
-#textInputBox, #moveNumberInput { position: absolute; z-index: 1001; display: none; border: 1px solid #aaa; font-size: 16px; padding: 5px; box-shadow: 0 2px 8px #0003; width: 50px; text-align: center; border-radius: 4px; }
+#textInputBox, #moveNumberInput { position: fixed; z-index: 1001; display: none; border: 1px solid #aaa; font-size: 16px; padding: 5px; box-shadow: 0 2px 8px #0003; width: 50px; text-align: center; border-radius: 4px; }
 #circleMenu, #textMenu, #arrowMenu {
     position: absolute; z-index: 1000; background: #fff; border: 1px solid #aaa; border-radius: 6px;
     box-shadow: 0 4px 16px #0002; padding: 10px 16px 10px 10px; display: none; min-width: 260px;
@@ -139,6 +149,7 @@ p {
     color: #6c757d;
     font-size: 0.9rem;
     line-height: 1.6;
+    flex-shrink: 0;
 }
 
 /* --- ADDED: Version Info (Corner) --- */

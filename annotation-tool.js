@@ -63,7 +63,8 @@ function initialize() {
     setupEventListeners();
     createBrush();
     setMode('number');
-    updateClearButton();
+    resizeCanvas(); // Set initial responsive size
+    updateToolbarState();
     saveState(); // Initial state
 }
 
@@ -78,6 +79,12 @@ function setupIcons() {
     document.querySelector('button[onclick="saveProject()"]').innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>`;
     document.querySelector('button[onclick="copyImage()"]').innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
     document.querySelector('button[onclick="downloadImage()"]').innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>`;
+    zoomInBtn = document.getElementById('zoomInBtn');
+    zoomOutBtn = document.getElementById('zoomOutBtn');
+    zoomFitBtn = document.getElementById('zoomFitBtn');
+    zoomInBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>`;
+    zoomOutBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>`;
+    zoomFitBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M3 9V3h6M21 15v6h-6"/></svg>`;
 }
 
 function setupMenus() {
@@ -86,7 +93,31 @@ function setupMenus() {
     arrowMenu.innerHTML = `<button class="close-btn" onclick="hideAllMenus()" title="關閉">×</button><label><input type="radio" name="arrowStyle" value="classic" checked><svg width="32" height="16"><line x1="2" y1="8" x2="28" y2="8" stroke="#888" stroke-width="3"/><polygon points="28,8 22,5 22,11" fill="#888"/></svg>經典</label><label><input type="radio" name="arrowStyle" value="curve"><svg width="32" height="16"><path d="M2,14 Q16,2 28,8" fill="none" stroke="#888" stroke-width="3"/><polygon points="28,8 22,5 22,11" fill="#888"/></svg>彎曲</label><label><input type="radio" name="arrowStyle" value="chalk-brush"><svg width="32" height="16" viewBox="0 0 32 16"><path d="M2,14 C10,4 20,4 28,8" fill="none" stroke="#888" stroke-width="2.5" stroke-linecap="round"/><path d="M22,5 L28,8 L22,11" fill="none" stroke="#888" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>曲線筆刷</label><label><input type="radio" name="arrowStyle" value="hatched"><svg width="32" height="16" viewBox="0 0 32 16"><path d="M2,6 L22,6 L22,4 L30,8 L22,12 L22,10 L2,10 Z" fill="none" stroke="#888" stroke-width="1.5"/><line x1="4" y1="12" x2="10" y2="4" stroke="#888" stroke-width="1"/><line x1="8" y1="12" x2="14" y2="4" stroke="#888" stroke-width="1"/><line x1="12" y1="12" x2="18" y2="4" stroke="#888" stroke-width="1"/></svg>斜線填充</label><label><input type="radio" name="arrowStyle" value="blocky"><svg width="32" height="16" viewBox="0 0 32 16"><path d="M2,6 L22,6 L22,4 L30,8 L22,12 L22,10 L2,10 Z" fill="none" stroke="#888" stroke-width="2"/></svg>空心區塊</label>`;
 }
 
+let resizeTimeout;
+function debouncedResize() {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(resizeCanvas, 100);
+}
+
+function resizeCanvas() {
+    const displayWidth  = canvas.clientWidth;
+    const displayHeight = canvas.clientHeight;
+
+    if (canvas.width  !== displayWidth || canvas.height !== displayHeight) {
+        canvas.width  = displayWidth;
+        canvas.height = displayHeight;
+    }
+
+    if (img) {
+       fillScreen();
+    } else {
+       draw();
+    }
+}
+
 function setupEventListeners() {
+    window.addEventListener('resize', debouncedResize);
+
     canvasContainer.addEventListener('click', () => { if (canvasContainer.classList.contains('empty') && !isAnyMenuVisible()) imgInput.click(); });
     imgInput.addEventListener('change', e => handleFile(e.target.files[0]));
     canvasContainer.addEventListener('dragover', e => e.preventDefault());
@@ -437,33 +468,36 @@ function setMode(m) {
     
     if (m === 'highlighter') { if (colorPicker.value === color) colorPicker.value = '#ffff00'; }
     else { colorPicker.value = color; }
+    updateCursor();
+}
+
+function updateCursor() {
+    if (spacebarDown) {
+        canvas.style.cursor = isPanning ? 'grabbing' : 'grab';
+    } else {
+        canvas.style.cursor = 'crosshair';
+    }
 }
 
 function isAnyMenuVisible() { return [circleMenu, textMenu, arrowMenu, moveNumberInput].some(m => m.style.display === 'block'); }
 function hideAllMenus() { [circleMenu, textMenu, arrowMenu, moveNumberInput].forEach(m => m.style.display = 'none'); }
-function showCircleMenu(e) { 
-    hideAllMenus(); circleMenu.style.display = "block"; const rect = numberBtn.getBoundingClientRect(); circleMenu.style.left = `${rect.left + window.scrollX}px`; circleMenu.style.top = `${rect.bottom + window.scrollY + 4}px`; 
+
+function showCircleMenu(e) {
+    hideAllMenus(); circleMenu.style.display = "block"; const rect = numberBtn.getBoundingClientRect(); circleMenu.style.left = `${rect.left + window.scrollX}px`; circleMenu.style.top = `${rect.bottom + window.scrollY + 4}px`;
     const sizeInput = document.getElementById('menuNumberSize');
     const checkbox = document.getElementById('numberBgCheckbox');
     const colorInput = document.getElementById('numberBgColorPicker');
     const valueDisplay = document.getElementById('number-size-value');
     const preview = document.getElementById('number-size-preview');
     let currentSize;
-    if (selected && selected.type === 'number') {
-        currentSize = selected.size;
-        checkbox.checked = !!selected.bgColor;
-        colorInput.value = selected.bgColor || numberBgColor;
-    } else {
-        currentSize = numberSize;
-        checkbox.checked = numberBgEnabled;
-        colorInput.value = numberBgColor;
-    }
+    if (selected && selected.type === 'number') { currentSize = selected.size; checkbox.checked = !!selected.bgColor; colorInput.value = selected.bgColor || numberBgColor; } else { currentSize = numberSize; checkbox.checked = numberBgEnabled; colorInput.value = numberBgColor; }
     sizeInput.value = currentSize;
     valueDisplay.textContent = currentSize;
     preview.style.width = `${currentSize * 2}px`;
     preview.style.height = `${currentSize * 2}px`;
     colorInput.disabled = !checkbox.checked;
 }
+
 function showTextMenu(e) {
     hideAllMenus(); textMenu.style.display = "block"; const rect = textBtn.getBoundingClientRect(); textMenu.style.left = `${rect.left + window.scrollX}px`; textMenu.style.top = `${rect.bottom + window.scrollY + 4}px`;
     const fontSelect = document.getElementById('menuFontFamily');
@@ -473,24 +507,16 @@ function showTextMenu(e) {
     const valueDisplay = document.getElementById('font-size-value');
     const preview = document.getElementById('font-size-preview');
     let currentSize, currentFont;
-    if (selected && selected.type === 'text') {
-        currentFont = selected.font;
-        currentSize = selected.size;
-        checkbox.checked = !!selected.bgColor;
-        colorInput.value = selected.bgColor || textBgColor;
-    } else {
-        currentFont = fontFamily;
-        currentSize = fontSize;
-        checkbox.checked = textBgEnabled;
-        colorInput.value = textBgColor;
-    }
+    if (selected && selected.type === 'text') { currentFont = selected.font; currentSize = selected.size; checkbox.checked = !!selected.bgColor; colorInput.value = selected.bgColor || textBgColor; } else { currentFont = fontFamily; currentSize = fontSize; checkbox.checked = textBgEnabled; colorInput.value = textBgColor; }
     fontSelect.value = currentFont;
     sizeInput.value = currentSize;
     valueDisplay.textContent = currentSize;
     preview.style.fontSize = `${currentSize}px`;
     colorInput.disabled = !checkbox.checked;
 }
+
 function showArrowMenu(e) { hideAllMenus(); arrowMenu.style.display = "block"; let rect = arrowBtn.getBoundingClientRect(); arrowMenu.style.left = (rect.left + window.scrollX) + "px"; arrowMenu.style.top = (rect.bottom + window.scrollY + 4) + "px"; const radio = arrowMenu.querySelector(`input[value="${arrowStyle}"]`); if(radio) radio.checked = true; }
+
 function showMoveNumberInput(e, ann) {
     hideAllMenus();
     const menuRect = canvas.getBoundingClientRect(); // Use canvas rect for positioning relative to it
@@ -509,18 +535,15 @@ function showMoveNumberInput(e, ann) {
             const numberAnnotations = annotations.filter(a => a.type === 'number');
             const maxNum = numberAnnotations.length;
             const newPos = parseInt(moveNumberInput.value, 10);
-
             if (!isNaN(newPos) && newPos > 0 && newPos <= maxNum) {
                 const itemToMove = ann;
                 const allButItem = annotations.filter(a => a !== itemToMove);
-                
                 let insertIndex = 0; let numCount = 0;
                 for(let i = 0; i <= allButItem.length; i++) {
                     if (numCount === newPos - 1) { insertIndex = i; break; }
                     if (allButItem[i] && allButItem[i].type === 'number') { numCount++; }
-                     if(i === allButItem.length) { insertIndex = allButItem.length; }
+                    if(i === allButItem.length) { insertIndex = allButItem.length; }
                 }
-                
                 allButItem.splice(insertIndex, 0, itemToMove);
                 annotations = allButItem;
                 reindexNumbers();
@@ -561,30 +584,49 @@ function showTextInput(x, y) {
 
 function draw() {
     requestIdleCallback(() => {
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+        ctx.save();
+        ctx.translate(viewX, viewY);
+        ctx.scale(zoom, zoom);
         if (img) ctx.drawImage(img, 0, 0);
-        
         annotations.filter(a => a.type === 'highlighter').forEach(ann => drawAnnotation(ann));
         annotations.filter(a => a.type !== 'highlighter').forEach(ann => drawAnnotation(ann));
-
-        if (highlighterPath.length > 1) { ctx.save(); ctx.globalAlpha = 0.4; ctx.strokeStyle = colorPicker.value; ctx.lineWidth = 20; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); highlighterPath.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)); ctx.stroke(); ctx.restore(); }
+        if (highlighterPath.length > 1) {
+            ctx.save();
+            ctx.globalAlpha = 0.4; ctx.strokeStyle = colorPicker.value; ctx.lineWidth = 20;
+            ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath();
+            highlighterPath.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+            ctx.stroke();
+            ctx.restore();
+        }
+        ctx.restore();
     });
 }
 
 function drawAnnotation(ann) {
-    const isSelected = (selected === ann);
-    ctx.save();
-    if (ann.type === 'arrow') { drawArrow(ann, false, isSelected); }
-    else if (ann.type === 'highlighter') { ctx.globalAlpha = 0.4; ctx.strokeStyle = ann.color; ctx.lineWidth = ann.lineWidth; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ann.path.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)); ctx.stroke(); if(isSelected){ ctx.globalAlpha=0.7; ctx.setLineDash([4,4]); ctx.lineWidth=1; ctx.strokeStyle = '#000'; ctx.stroke(); ctx.setLineDash([]);} }
-    else {
-        ctx.strokeStyle = ann.color || "#ff0000"; ctx.fillStyle = ann.color || "#ff0000"; ctx.lineWidth = 2.5;
-        if (isSelected) { ctx.shadowColor = "#339af0"; ctx.shadowBlur = 8; }
-        if (ann.type === 'number') { const radius = ann.size || 18; ctx.beginPath(); ctx.arc(ann.x, ann.y, radius, 0, 2 * Math.PI); if (ann.bgColor) { ctx.fillStyle = ann.bgColor; ctx.fill(); } ctx.stroke(); ctx.fillStyle = ann.color || "#ff0000"; ctx.font = `bold ${Math.round(radius * 1.1)}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.shadowBlur = 0; ctx.fillText(ann.num, ann.x, ann.y); }
-        else if (ann.type === 'ellipse') { ctx.beginPath(); ctx.ellipse(ann.x, ann.y, ann.rx, ann.ry, 0, 0, 2 * Math.PI); ctx.stroke(); }
-        else if (ann.type === 'rect') { ctx.strokeRect(ann.x, ann.y, ann.w, ann.h); }
-        else if (ann.type === 'text') { ctx.font = `${ann.size}px ${ann.font}`; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; if (ann.bgColor) { const metrics = ctx.measureText(ann.text); const padding = 4; const rectH = ann.size + padding; const rectW = metrics.width + padding * 2; const rectX = ann.x - padding; const rectY = ann.y - padding / 2; ctx.fillStyle = ann.bgColor; ctx.fillRect(rectX, rectY, rectW, rectH); } ctx.fillStyle = ann.color || "#ff0000"; ctx.fillText(ann.text, ann.x, ann.y); }
+    const renderCtx = this && this.ctx ? this.ctx : ctx;
+    const renderZoom = this && this.zoom ? this.zoom : zoom;
+    const isSelected = this && this.hasOwnProperty('selected') ? this.selected === ann : selected === ann;
+    
+    const lw = 2.5 / renderZoom;
+    renderCtx.save();
+    if (ann.type === 'arrow') {
+        drawArrow.call({ctx: renderCtx, zoom: renderZoom, selected: isSelected}, ann, false, isSelected);
+    } else if (ann.type === 'highlighter') {
+        renderCtx.globalAlpha = 0.4; renderCtx.strokeStyle = ann.color; renderCtx.lineWidth = ann.lineWidth; renderCtx.lineCap = 'round'; renderCtx.lineJoin = 'round'; renderCtx.beginPath(); ann.path.forEach((p, i) => i === 0 ? renderCtx.moveTo(p.x, p.y) : renderCtx.lineTo(p.x, p.y)); renderCtx.stroke();
+        if(isSelected){ renderCtx.globalAlpha=0.7; renderCtx.setLineDash([4/renderZoom, 4/renderZoom]); renderCtx.lineWidth=1/renderZoom; renderCtx.strokeStyle = '#000'; renderCtx.stroke(); renderCtx.setLineDash([]);}
+    } else {
+        renderCtx.strokeStyle = ann.color || "#ff0000"; renderCtx.fillStyle = ann.color || "#ff0000"; renderCtx.lineWidth = lw;
+        if (isSelected) { renderCtx.shadowColor = "#339af0"; renderCtx.shadowBlur = 8 / renderZoom; }
+        if (ann.type === 'number') { const radius = ann.size; renderCtx.beginPath(); renderCtx.arc(ann.x, ann.y, radius, 0, 2 * Math.PI); if (ann.bgColor) { renderCtx.fillStyle = ann.bgColor; renderCtx.fill(); } renderCtx.stroke(); renderCtx.fillStyle = ann.color || "#ff0000"; renderCtx.font = `bold ${Math.round(radius * 1.1)}px Arial`; renderCtx.textAlign = 'center'; renderCtx.textBaseline = 'middle'; renderCtx.shadowBlur = 0; renderCtx.fillText(ann.num, ann.x, ann.y); }
+        else if (ann.type === 'ellipse') { renderCtx.beginPath(); renderCtx.ellipse(ann.x, ann.y, ann.rx, ann.ry, 0, 0, 2 * Math.PI); renderCtx.stroke(); }
+        else if (ann.type === 'rect') { renderCtx.strokeRect(ann.x, ann.y, ann.w, ann.h); }
+        else if (ann.type === 'text') { renderCtx.font = `${ann.size}px ${ann.font}`; renderCtx.textAlign = 'left'; renderCtx.textBaseline = 'top'; if (ann.bgColor) { const metrics = renderCtx.measureText(ann.text); const padding = 4; const rectH = ann.size + padding; const rectW = metrics.width + padding * 2; const rectX = ann.x - padding; const rectY = ann.y - padding / 2; renderCtx.fillStyle = ann.bgColor; renderCtx.fillRect(rectX, rectY, rectW, rectH); } renderCtx.fillStyle = ann.color || "#ff0000"; renderCtx.fillText(ann.text, ann.x, ann.y); }
     }
-    ctx.restore();
+    renderCtx.restore();
 }
 
 function hitTest(ann, x, y) {
@@ -603,16 +645,16 @@ function handleFile(file) { if (!file) return; const reader = new FileReader(); 
 function loadImage(src, callback) { img = new window.Image(); img.onload = () => { canvas.width = img.width; canvas.height = img.height; canvasContainer.classList.remove('empty'); if (!callback) { annotations = []; canvasContainer.scrollTop = 0; canvasContainer.scrollLeft = 0; } saveState(); draw(); updateClearButton(); if (callback) callback(); }; img.src = src; }
 function saveProject() { const fileName = prompt("請輸入專案檔名：", "my-annotation-project"); if (!fileName) return; if (!img) { alert("請先載入一張圖片才能儲存專案。"); return; } const projectData = { imageData: img.src, annotations: annotations }; const jsonString = JSON.stringify(projectData, null, 2); const blob = new Blob([jsonString], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${fileName}.json`; a.click(); URL.revokeObjectURL(url); }
 function loadProject(projectData) { if (!projectData.imageData || !projectData.annotations) { alert('無效的專案檔。'); return; } loadImage(projectData.imageData, () => { annotations = projectData.annotations; if (annotations.length > 0) { const firstAnn = annotations.find(a=>a.type !== 'highlighter'); if(firstAnn) { color = firstAnn.color || '#ff0000'; colorPicker.value = color; }} reindexNumbers(); saveState(); }); }
-function downloadImage() { const fileName = prompt("請輸入圖片檔名：", "annotated-image"); if (!fileName) return; selected = null; hideAllMenus(); draw(); requestIdleCallback(() => { canvas.toBlob(blob => { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${fileName}.png`; a.click(); URL.revokeObjectURL(url); }); }); }
-function copyImage() { if (!navigator.clipboard || !navigator.clipboard.write) { alert('您的瀏覽器不支援此功能。'); return; } selected = null; hideAllMenus(); draw(); requestIdleCallback(() => { canvas.toBlob(blob => { navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(() => alert('影像已複製到剪貼簿！')).catch(err => { console.error('Copy failed:', err); alert('複製失敗。請檢查瀏覽器權限。'); }); }, 'image/png'); }); }
+function downloadImage() { const fileName = prompt("請輸入圖片檔名：", "annotated-image"); if (!fileName || !img) return; selected = null; hideAllMenus(); const tempCanvas = document.createElement('canvas'); tempCanvas.width = img.width; tempCanvas.height = img.height; const tempCtx = tempCanvas.getContext('2d'); tempCtx.drawImage(img, 0, 0); annotations.forEach(ann => { drawAnnotation.call({ ctx: tempCtx, zoom: 1, selected: null }, ann); }); requestIdleCallback(() => { tempCanvas.toBlob(blob => { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${fileName}.png`; a.click(); URL.revokeObjectURL(url); }); draw(); }); }
+function copyImage() { if (!navigator.clipboard || !navigator.clipboard.write || !img) { alert('您的瀏覽器不支援此功能或沒有圖片可複製。'); return; } selected = null; hideAllMenus(); const tempCanvas = document.createElement('canvas'); tempCanvas.width = img.width; tempCanvas.height = img.height; const tempCtx = tempCanvas.getContext('2d'); tempCtx.drawImage(img, 0, 0); annotations.forEach(ann => { drawAnnotation.call({ ctx: tempCtx, zoom: 1, selected: null }, ann); }); requestIdleCallback(() => { tempCanvas.toBlob(blob => { navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(() => alert('影像已複製到剪貼簿！')).catch(err => { console.error('Copy failed:', err); alert('複製失敗。請檢查瀏覽器權限。'); }); }, 'image/png'); draw(); }); }
 function updateClearButton() { if (img) { clearBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`; clearBtn.title = "清除畫布與標註"; } else { clearBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`; clearBtn.title = "載入新圖片"; } }
-function handleClearOrNew() { if (img) { if (confirm("您確定要清除目前的圖片和所有標註嗎？此操作無法復原。")) { img = null; annotations = []; ctx.clearRect(0, 0, canvas.width, canvas.height); canvasContainer.classList.add('empty'); updateClearButton(); saveState(); } } else { imgInput.click(); } }
-function drawArrow(ann, isTemp, isSelected) { const { style = "classic", color: c = "#ff0000", x: x1, y: y1, x2, y2 } = ann; if(!x1 || !y1 || !x2 || !y2) return; ctx.save(); ctx.lineCap = "round"; if (style === 'hatched' || style === 'blocky') { const points = getBlockArrowPolygon(x1, y1, x2, y2); if (points.length > 0) { ctx.lineWidth = 2.5; ctx.strokeStyle = c; if (style === 'hatched') { ctx.save(); drawWobblyPath(ctx, points, 5); ctx.clip(); const hatchWidth = 8; ctx.lineWidth = 1.5; const bounds = points.reduce((acc, p) => ({minX: Math.min(acc.minX, p.x), maxX: Math.max(acc.maxX, p.x), minY: Math.min(acc.minY, p.y), maxY: Math.max(acc.maxY, p.y)}), {minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity}); const diag = Math.hypot(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY); for(let i = -diag; i < diag; i += hatchWidth) { ctx.beginPath(); ctx.moveTo(bounds.minX + i, bounds.minY); ctx.lineTo(bounds.minX + i + diag, bounds.minY + diag); ctx.stroke(); } ctx.restore(); } drawWobblyPath(ctx, points, 5); ctx.stroke(); } } else if (style === "classic") { ctx.strokeStyle = c; ctx.lineWidth = 5; const dx = x2 - x1; const dy = y2 - y1; const dist = Math.hypot(dx, dy); if (dist > 5) { ctx.beginPath(); const pullback = 5; const x2_line = x2 - pullback * (dx / dist); const y2_line = y2 - pullback * (dy / dist); ctx.moveTo(x1, y1); ctx.lineTo(x2_line, y2_line); ctx.stroke(); } drawArrowHead(x1, y1, x2, y2, c); } else if (style === "curve") { ctx.strokeStyle = c; ctx.lineWidth = 2; let dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy); let cx = x1 + dx/2 - dy/4, cy = y1 + dy/2 + dx/4; let tangentAngle; if (len > 5) { let t = 1 - Math.min(5, len/2) / len; let endX = (1-t)**2*x1 + 2*(1-t)*t*cx + t**2*x2; let endY = (1-t)**2*y1 + 2*(1-t)*t*cy + t**2*y2; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.quadraticCurveTo(cx, cy, endX, endY); ctx.stroke(); tangentAngle = Math.atan2(y2 - endY, x2 - endX); } else { tangentAngle = Math.atan2(dy, dx); } drawArrowHeadAt(x2, y2, tangentAngle, c); } else if (style === "chalk-brush") { if (!isBrushReady) { ctx.restore(); return; } const tempCanvas = document.createElement('canvas'); tempCanvas.width = canvas.width; tempCanvas.height = canvas.height; const tempCtx = tempCanvas.getContext('2d'); const dx = x2 - x1, dy = y2 - y1, dist = Math.hypot(dx, dy); if (dist < 1) { ctx.restore(); return; } const cx = x1 + dx/2 - dy * 0.25, cy = y1 + dy/2 + dx * 0.25; const curvePoints = []; for (let t = 0; t <= 1; t += 0.02) curvePoints.push({x: (1-t)**2*x1 + 2*(1-t)*t*cx + t**2*x2, y: (1-t)**2*y1 + 2*(1-t)*t*cy + t**2*y2}); for(let i=0; i<curvePoints.length-1; i++) drawBrushStroke(tempCtx, curvePoints[i], curvePoints[i+1], false); const lastP = curvePoints[curvePoints.length - 1]; const secondLastP = curvePoints[curvePoints.length - 2] || {x:x1, y:y1}; const angle = Math.atan2(lastP.y - secondLastP.y, lastP.x - secondLastP.x); const headLen = Math.min(30, dist * 0.3); const headAngle = Math.PI / 6; const p_tip = { x: x2, y: y2 }; const p_h1 = { x: x2 - headLen * Math.cos(angle - headAngle), y: y2 - headLen * Math.sin(angle - headAngle) }; const p_h2 = { x: x2 - headLen * Math.cos(angle + headAngle), y: y2 - headLen * Math.sin(angle + headAngle) }; drawBrushStroke(tempCtx, p_tip, p_h1, true); drawBrushStroke(tempCtx, p_tip, p_h2, true); tempCtx.globalCompositeOperation = 'source-in'; tempCtx.fillStyle = c; tempCtx.fillRect(0, 0, canvas.width, canvas.height); ctx.drawImage(tempCanvas, 0, 0); } if (isSelected) { ctx.shadowColor = "#339af0"; ctx.shadowBlur = 8; ctx.setLineDash([4,2]); ctx.strokeStyle = "#339af0"; ctx.lineWidth = 2; if(style !== 'blocky' && style !== 'hatched') { ctx.beginPath(); ctx.arc(x1, y1, 8, 0, 2*Math.PI); ctx.arc(x2, y2, 8, 0, 2*Math.PI); ctx.stroke();} else { const points = getBlockArrowPolygon(x1, y1, x2, y2); if (points.length>0) { ctx.beginPath(); points.forEach((p,i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)); ctx.stroke();} } } ctx.restore(); }
+function handleClearOrNew() { if (img) { if (confirm("您確定要清除目前的圖片和所有標註嗎？此操作無法復原。")) { img = null; annotations = []; zoom = 1.0; viewX = 0; viewY = 0; canvasContainer.classList.add('empty'); saveState(); draw(); } } else { imgInput.click(); } }
+function drawArrow(ann, isTemp, isSelected) { const { style = "classic", color: c = "#ff0000", x: x1, y: y1, x2, y2 } = ann; if(!x1 || !y1 || !x2 || !y2) return; const currentCtx = this.ctx; const currentZoom = this.zoom; const lw = 2.5 / currentZoom; currentCtx.save(); currentCtx.lineCap = "round"; if (style === 'hatched' || style === 'blocky') { const points = getBlockArrowPolygon(x1, y1, x2, y2); if (points.length > 0) { currentCtx.lineWidth = lw; currentCtx.strokeStyle = c; if (style === 'hatched') { currentCtx.save(); drawWobblyPath(currentCtx, points, 5); currentCtx.clip(); const hatchWidth = 8; currentCtx.lineWidth = 1.5/currentZoom; const bounds = points.reduce((acc, p) => ({minX: Math.min(acc.minX, p.x), maxX: Math.max(acc.maxX, p.x), minY: Math.min(acc.minY, p.y), maxY: Math.max(acc.maxY, p.y)}), {minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity}); const diag = Math.hypot(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY); for(let i = -diag; i < diag; i += hatchWidth) { currentCtx.beginPath(); currentCtx.moveTo(bounds.minX + i, bounds.minY); currentCtx.lineTo(bounds.minX + i + diag, bounds.minY + diag); currentCtx.stroke(); } currentCtx.restore(); } drawWobblyPath(currentCtx, points, 5); currentCtx.stroke(); } } else if (style === "classic") { currentCtx.strokeStyle = c; currentCtx.lineWidth = 5/currentZoom; const dx = x2 - x1; const dy = y2 - y1; const dist = Math.hypot(dx, dy); if (dist > 5/currentZoom) { currentCtx.beginPath(); const pullback = 5/currentZoom; const x2_line = x2 - pullback * (dx / dist); const y2_line = y2 - pullback * (dy / dist); currentCtx.moveTo(x1, y1); currentCtx.lineTo(x2_line, y2_line); currentCtx.stroke(); } drawArrowHead.call(this, x1, y1, x2, y2, c); } else if (style === "curve") { currentCtx.strokeStyle = c; currentCtx.lineWidth = lw; let dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy); let cx = x1 + dx/2 - dy/4, cy = y1 + dy/2 + dx/4; let tangentAngle; if (len > 5/currentZoom) { let t = 1 - Math.min(5, len/2) / len; let endX = (1-t)**2*x1 + 2*(1-t)*t*cx + t**2*x2; let endY = (1-t)**2*y1 + 2*(1-t)*t*cy + t**2*y2; currentCtx.beginPath(); currentCtx.moveTo(x1, y1); currentCtx.quadraticCurveTo(cx, cy, endX, endY); currentCtx.stroke(); tangentAngle = Math.atan2(y2 - endY, x2 - endX); } else { tangentAngle = Math.atan2(dy, dx); } drawArrowHeadAt.call(this, x2, y2, tangentAngle, c); } else if (style === "chalk-brush") { if (!isBrushReady) { currentCtx.restore(); return; } const tempCanvas = document.createElement('canvas'); tempCanvas.width = currentCtx.canvas.width; tempCanvas.height = currentCtx.canvas.height; const tempCtx = tempCanvas.getContext('2d'); const dx = x2 - x1, dy = y2 - y1, dist = Math.hypot(dx, dy); if (dist < 1) { currentCtx.restore(); return; } const cx = x1 + dx/2 - dy * 0.25, cy = y1 + dy/2 + dx * 0.25; const curvePoints = []; for (let t = 0; t <= 1; t += 0.02) curvePoints.push({x: (1-t)**2*x1 + 2*(1-t)*t*cx + t**2*x2, y: (1-t)**2*y1 + 2*(1-t)*t*cy + t**2*y2}); for(let i=0; i<curvePoints.length-1; i++) drawBrushStroke(tempCtx, curvePoints[i], curvePoints[i+1], false); const lastP = curvePoints[curvePoints.length - 1]; const secondLastP = curvePoints[curvePoints.length - 2] || {x:x1, y:y1}; const angle = Math.atan2(lastP.y - secondLastP.y, lastP.x - secondLastP.x); const headLen = Math.min(30, dist * 0.3); const headAngle = Math.PI / 6; const p_tip = { x: x2, y: y2 }; const p_h1 = { x: x2 - headLen * Math.cos(angle - headAngle), y: y2 - headLen * Math.sin(angle - headAngle) }; const p_h2 = { x: x2 - headLen * Math.cos(angle + headAngle), y: y2 - headLen * Math.sin(angle + headAngle) }; drawBrushStroke(tempCtx, p_tip, p_h1, true); drawBrushStroke(tempCtx, p_tip, p_h2, true); tempCtx.globalCompositeOperation = 'source-in'; tempCtx.fillStyle = c; tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height); currentCtx.drawImage(tempCanvas, 0, 0); } if (isSelected) { currentCtx.shadowColor = "#339af0"; currentCtx.shadowBlur = 8/currentZoom; currentCtx.setLineDash([4/currentZoom,2/currentZoom]); currentCtx.strokeStyle = "#339af0"; currentCtx.lineWidth = lw; if(style !== 'blocky' && style !== 'hatched') { currentCtx.beginPath(); currentCtx.arc(x1, y1, 8/currentZoom, 0, 2*Math.PI); currentCtx.arc(x2, y2, 8/currentZoom, 0, 2*Math.PI); currentCtx.stroke();} else { const points = getBlockArrowPolygon(x1, y1, x2, y2); if (points.length>0) { currentCtx.beginPath(); points.forEach((p,i) => i === 0 ? currentCtx.moveTo(p.x, p.y) : currentCtx.lineTo(p.x, p.y)); currentCtx.stroke();} } } currentCtx.restore(); }
 function getBlockArrowPolygon(x1, y1, x2, y2) { const bodyWidth = 12, headWidth = 28, headLength = 25; const dx = x2 - x1, dy = y2 - y1; const len = Math.hypot(dx, dy); if (len < headLength) return []; const angle = Math.atan2(dy, dx), pAngle = angle + Math.PI / 2, bodyLen = len - headLength; const p1 = { x: x1 - Math.cos(pAngle) * bodyWidth / 2, y: y1 - Math.sin(pAngle) * bodyWidth / 2 }; const p2 = { x: p1.x + Math.cos(angle) * bodyLen, y: p1.y + Math.sin(angle) * bodyLen }; const p3 = { x: p2.x - Math.cos(pAngle) * (headWidth - bodyWidth) / 2, y: p2.y - Math.sin(pAngle) * (headWidth - bodyWidth) / 2 }; const p4 = { x: x2, y: y2 }; const p5 = { x: p3.x + Math.cos(pAngle) * headWidth, y: p3.y + Math.sin(pAngle) * headWidth }; const p6 = { x: p1.x + Math.cos(pAngle) * bodyWidth, y: p1.y + Math.sin(pAngle) * bodyWidth }; const p7 = { x: p6.x + Math.cos(angle) * bodyLen, y: p6.y + Math.sin(angle) * bodyLen }; return [p1, p2, p3, p4, p5, p7, p6, p1]; }
 function drawWobblyPath(targetCtx, points, randomness) { if (points.length < 2) return; targetCtx.beginPath(); targetCtx.moveTo(points[0].x, points[0].y); for (let i = 0; i < points.length - 1; i++) { const p1 = points[i], p2 = points[i+1]; const dx = p2.x - p1.x, dy = p2.y - p1.y, dist = Math.hypot(dx, dy); const segments = Math.max(2, Math.floor(dist / 15)), pAngle = Math.atan2(dy, dx) + Math.PI/2; for (let j = 1; j <= segments; j++) { const t = j / segments, x = p1.x + t * dx, y = p1.y + t * dy; const rand = (Math.random() - 0.5) * randomness; targetCtx.lineTo(x + Math.cos(pAngle) * rand, y + Math.sin(pAngle) * rand); } } }
 function drawBrushStroke(targetCtx, p1, p2, isHead) { if (!isBrushReady) return; const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y); for (let i = 0; i < dist; i += 2) { const t = i / dist, x = p1.x + t * (p2.x - p1.x), y = p1.y + t * (p2.y - p1.y); const size = (isHead ? 25 : 20) * (0.8 + Math.random() * 0.4); targetCtx.globalAlpha = 0.5 + Math.random() * 0.5; targetCtx.drawImage(brushImage, x - size / 2, y - size / 2, size, size); } }
-function drawArrowHead(x1, y1, x2, y2, color) { drawArrowHeadAt(x2, y2, Math.atan2(y2 - y1, x2 - x1), color); }
-function drawArrowHeadAt(x, y, angle, color) { let len = 18; const angleOffset = Math.PI / 6; ctx.save(); ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - len * Math.cos(angle - angleOffset), y - len * Math.sin(angle - angleOffset)); ctx.lineTo(x - len * Math.cos(angle + angleOffset), y - len * Math.sin(angle + angleOffset)); ctx.closePath(); ctx.fill(); ctx.restore(); }
+function drawArrowHead(x1, y1, x2, y2, color) { drawArrowHeadAt.call(this, x2, y2, Math.atan2(y2 - y1, x2 - x1), color); }
+function drawArrowHeadAt(x, y, angle, color) { let len = 18/this.zoom; const angleOffset = Math.PI / 6; const currentCtx = this.ctx; currentCtx.save(); currentCtx.fillStyle = color; currentCtx.beginPath(); currentCtx.moveTo(x, y); currentCtx.lineTo(x - len * Math.cos(angle - angleOffset), y - len * Math.sin(angle - angleOffset)); currentCtx.lineTo(x - len * Math.cos(angle + angleOffset), y - len * Math.sin(angle + angleOffset)); currentCtx.closePath(); currentCtx.fill(); currentCtx.restore(); }
 function distToSegment(p, v, w) { let l2 = (w.x-v.x)**2 + (w.y-v.y)**2; if (l2 === 0) return Math.hypot(p.x-v.x,p.y-v.y); let t = ((p.x-v.x)*(w.x-v.x)+(p.y-v.y)*(w.y-v.y))/l2; t = Math.max(0,Math.min(1,t)); return Math.hypot(p.x - (v.x + t*(w.x-v.x)), p.y - (v.y + t*(w.y-v.y))); }
 
 function saveState() {
