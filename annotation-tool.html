@@ -2,14 +2,14 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>多功能圖片標註工具 (v6.2)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多功能圖片標註工具 (v6.4)</title>
     <!-- 引用外部 CSS 檔案 -->
     <link rel="stylesheet" href="annotation-tool.css">
 </head>
 <body>
-<!-- START: Add this wrapper div -->
 <div id="app-container">
-    <h2>多功能圖片標註工具 (v6.2)</h2>
+    <h2>多功能圖片標註工具 (v6.4)</h2>
     <div class="toolbar">
         <input type="file" id="imgInput" accept="image/*, application/json" style="display: none;">
         <button id="clearBtn" class="toolbar-btn" onclick="handleClearOrNew()" title="清除畫布/新增圖片"></button>
@@ -17,20 +17,18 @@
         <button id="undoBtn" class="toolbar-btn" onclick="undo()" title="復原 (Ctrl+Z)"></button>
         <button id="redoBtn" class="toolbar-btn" onclick="redo()" title="取消復原 (Ctrl+Y)"></button>
         <div class="separator"></div>
-        <button id="numberBtn" class="toggle-btn" onclick="setMode('number')">123</button>
-        <button id="ellipseBtn" class="toolbar-btn" onclick="setMode('ellipse')" title="橢圓 (按住 Shift 畫正圓)"></button>
-        <button id="rectBtn" class="toolbar-btn" onclick="setMode('rect')" title="矩形 (按住 Shift 畫正方形)"></button>
-        <button id="arrowBtn" class="arrow-btn" onclick="setMode('arrow')"></button>
-        <button id="highlighterBtn" class="toolbar-btn" onclick="setMode('highlighter')" title="螢光筆"></button>
-        <button id="textBtn" class="text-btn" onclick="setMode('text')"></button>
+        <button id="numberBtn" class="toggle-btn">123</button>
+        <button id="ellipseBtn" class="toolbar-btn" title="橢圓 (按住 Shift 畫正圓)"></button>
+        <button id="rectBtn" class="toolbar-btn" title="矩形 (按住 Shift 畫正方形)"></button>
+        <button id="arrowBtn" class="arrow-btn"></button>
+        <button id="highlighterBtn" class="toolbar-btn" title="螢光筆"></button>
+        <button id="textBtn" class="text-btn"></button>
         <label><input type="color" id="colorPicker" value="#ff0000" title="標註顏色"></label>
         <div class="separator"></div>
-        <!-- START: Added Zoom Controls -->
         <button id="zoomOutBtn" class="toolbar-btn" onclick="zoomOut()" title="縮小"></button>
         <button id="zoomInBtn" class="toolbar-btn" onclick="zoomIn()" title="放大"></button>
         <button id="zoomFitBtn" class="toolbar-btn" onclick="fitToScreen()" title="符合畫面大小"></button>
         <div class="separator"></div>
-        <!-- END: Added Zoom Controls -->
         <button class="toolbar-btn" onclick="saveProject()" title="儲存專案 (.json)"></button>
         <button class="toolbar-btn" onclick="copyImage()" title="複製到剪貼簿"></button>
         <button class="toolbar-btn" onclick="downloadImage()" title="下載圖片 (.png)"></button>
@@ -43,7 +41,6 @@
         </div>
         <canvas id="canvas"></canvas>
         
-        <!-- START: New Text Input Widget -->
         <div id="textInputContainer">
             <textarea id="textInputArea" rows="1" placeholder="輸入文字..."></textarea>
             <div class="text-input-controls">
@@ -51,7 +48,6 @@
                 <button id="textCancelBtn" title="取消 (Esc)">✖</button>
             </div>
         </div>
-        <!-- END: New Text Input Widget -->
         
         <input type="number" id="moveNumberInput" min="1">
         <div id="circleMenu"></div>
@@ -59,14 +55,12 @@
         <div id="arrowMenu"></div>
     </div>
     <p>
-    - <b>使用提示:</b> 按住 <b>空白鍵</b> 可拖曳平移圖片。使用 <b>滑鼠滾輪</b> 或 <b>+/- 按鈕</b> 可縮放畫面。<br>
-    - <b>更新日誌 (v6.2):</b> 優化文字輸入功能，支援換行、確認/取消。<br>
-    - <b>先前更新：</b> 縮放平移、復原/取消復原、選單預覽、螢光筆、數字排序等功能。
+    - <b>使用提示:</b> 按住 <b>空白鍵</b> 或 <b>雙指</b> 可拖曳平移。使用 <b>滑鼠滾輪</b>、<b>雙指縮放</b> 或 <b>+/- 按鈕</b> 可縮放畫面。<br>
+    - <b>行動裝置:</b> <b>長按</b> 工具按鈕 (123, T, ➔) 或數字標註可開啟對應選單。<br>
+    - <b>更新日誌 (v6.4):</b> 新增行動裝置觸控與長按支援。<br>
+    - <b>先前更新：</b> 動態圖片高度、優化文字輸入、縮放平移、復原/取消復原等功能。
     </p>
 </div>
-<!-- END: Add this wrapper div -->
-
-<!-- 在 body 結尾引用外部 JS 檔案 -->
 <script src="annotation-tool.js"></script>
 </body>
 </html>
