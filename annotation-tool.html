@@ -2,17 +2,14 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <!-- MODIFIED: Title is now cleaner without the version number -->
-    <title>多功能圖片標註工具</title>
+    <title>多功能圖片標註工具 (v6.1)</title>
     <!-- 引用外部 CSS 檔案 -->
     <link rel="stylesheet" href="annotation-tool.css">
 </head>
 <body>
-
+<!-- START: Add this wrapper div -->
 <div id="app-container">
-    <!-- MODIFIED: Removed version number from the main heading -->
-    <h2>多功能圖片標註工具</h2>
-    
+    <h2>多功能圖片標註工具 (v6.1)</h2>
     <div class="toolbar">
         <input type="file" id="imgInput" accept="image/*, application/json" style="display: none;">
         <button id="clearBtn" class="toolbar-btn" onclick="handleClearOrNew()" title="清除畫布/新增圖片"></button>
@@ -28,6 +25,12 @@
         <button id="textBtn" class="text-btn" onclick="setMode('text')"></button>
         <label><input type="color" id="colorPicker" value="#ff0000" title="標註顏色"></label>
         <div class="separator"></div>
+        <!-- START: Added Zoom Controls -->
+        <button id="zoomOutBtn" class="toolbar-btn" onclick="zoomOut()" title="縮小"></button>
+        <button id="zoomInBtn" class="toolbar-btn" onclick="zoomIn()" title="放大"></button>
+        <button id="zoomFitBtn" class="toolbar-btn" onclick="fitToScreen()" title="符合畫面大小"></button>
+        <div class="separator"></div>
+        <!-- END: Added Zoom Controls -->
         <button class="toolbar-btn" onclick="saveProject()" title="儲存專案 (.json)"></button>
         <button class="toolbar-btn" onclick="copyImage()" title="複製到剪貼簿"></button>
         <button class="toolbar-btn" onclick="downloadImage()" title="下載圖片 (.png)"></button>
@@ -38,25 +41,20 @@
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
             <span>將圖片或專案檔 (.json) 拖曳至此<br>或點擊選擇檔案</span>
         </div>
-        <canvas id="canvas" width="800" height="450"></canvas>
+        <canvas id="canvas"></canvas>
         <input type="text" id="textInputBox">
         <input type="number" id="moveNumberInput" min="1">
         <div id="circleMenu"></div>
         <div id="textMenu"></div>
         <div id="arrowMenu"></div>
     </div>
-    
-    <!-- You can keep or remove this commented out <p> tag -->
-    <!-- <p>
-    - <b>更新日誌 (v6.0):</b><br>
-    - <b>復原/取消復原</b>新增 Undo/Redo 功能，可復原大部分的標註操作。<br>
-    - <b>先前更新：</b>選單預覽、BUG修正、螢光筆、數字排序、自訂檔名等功能。
-    </p> -->
-
-    <!-- ADDED: Version number element placed at the end of the container -->
-    <div class="version-corner">v6.0</div>
-
+    <p>
+    - <b>使用提示:</b> 按住 <b>空白鍵</b> 可拖曳平移圖片。使用 <b>滑鼠滾輪</b> 或 <b>+/- 按鈕</b> 可縮放畫面。<br>
+    - <b>更新日誌 (v6.1):</b> 新增圖片縮放與平移功能。<br>
+    - <b>先前更新：</b> 復原/取消復原、選單預覽、螢光筆、數字排序等功能。
+    </p>
 </div>
+<!-- END: Add this wrapper div -->
 
 <!-- 在 body 結尾引用外部 JS 檔案 -->
 <script src="annotation-tool.js"></script>
