@@ -28,11 +28,13 @@ let lastMouseX = 0, lastMouseY = 0;
 let history = [];
 let historyIndex = -1;
 
-// Panning/Dragging Variables
-let isSpacePressed = false;
+// --- Zoom and Pan Variables ---
+let zoom = 1.0;
+let viewX = 0, viewY = 0;
 let isPanning = false;
-let lastPanX = 0;
-let lastPanY = 0;
+let spacebarDown = false;
+let panStart = { x: 0, y: 0 };
+const MIN_ZOOM = 0.1, MAX_ZOOM = 10;
 
 // --- DOM Elements ---
 const canvas = document.getElementById('canvas');
@@ -52,8 +54,7 @@ const highlighterBtn = document.getElementById('highlighterBtn');
 const circleMenu = document.getElementById('circleMenu');
 const textMenu = document.getElementById('textMenu');
 const arrowMenu = document.getElementById('arrowMenu');
-const ellipseBtn = document.getElementById('ellipseBtn');
-const rectBtn = document.getElementById('rectBtn');
+let zoomInBtn, zoomOutBtn, zoomFitBtn;
 
 
 // --- Initialization ---
@@ -127,13 +128,13 @@ function setupEventListeners() {
     numberBtn.addEventListener('contextmenu', e => { if (numberBtn.classList.contains("active")) { e.preventDefault(); showCircleMenu(e); } });
     textBtn.addEventListener('contextmenu', e => { if (textBtn.classList.contains("active")) { e.preventDefault(); showTextMenu(e); } });
     arrowBtn.addEventListener('contextmenu', e => { if (arrowBtn.classList.contains("active")) { e.preventDefault(); showArrowMenu(e); } });
-
+    
     document.addEventListener('mousedown', e => {
         const isClickingOnMenu = [circleMenu, textMenu, arrowMenu, moveNumberInput].some(menu => menu.contains(e.target));
-        const isClickingOnButton = [clearBtn, numberBtn, textBtn, arrowBtn, undoBtn, redoBtn, ellipseBtn, rectBtn].some(btn => btn.contains(e.target));
+        const isClickingOnButton = [...document.querySelectorAll('.toolbar-btn, .toggle-btn, .text-btn, .arrow-btn')].some(btn => btn.contains(e.target));
         if (!isClickingOnMenu && !isClickingOnButton) hideAllMenus();
     });
-
+    
     circleMenu.addEventListener('input', e => {
         if (e.target.id === 'menuNumberSize') {
             const newSize = parseInt(e.target.value, 10);
@@ -148,7 +149,7 @@ function setupEventListeners() {
              if(selected && selected.type === 'number' && selected.bgColor) { selected.bgColor = numberBgColor; draw(); }
         }
     });
-    circleMenu.addEventListener('change', e => {
+    circleMenu.addEventListener('change', e => { 
         if (e.target.id === 'numberBgCheckbox') {
             numberBgEnabled = e.target.checked;
             document.getElementById('numberBgColorPicker').disabled = !e.target.checked;
@@ -186,286 +187,71 @@ function setupEventListeners() {
 
     canvas.addEventListener('mousedown', onCanvasMouseDown);
     canvas.addEventListener('contextmenu', onCanvasContextMenu);
-    
-    window.addEventListener('keydown', onKeyDown, { capture: true }); 
-    window.addEventListener('keyup', onKeyUp, { capture: true });
+    canvas.addEventListener('mousemove', onCanvasMouseMove);
+    canvas.addEventListener('mouseup', onCanvasMouseUp);
+    canvas.addEventListener('mouseleave', onCanvasMouseLeave);
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    canvas.addEventListener('wheel', onCanvasWheel, { passive: false });
 }
 
-// =================================================================
-// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-//                  THIS IS THE CORRECTED FUNCTION
-// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-function getCanvasCoordinates(e) {
-    // Get the bounding rectangle of the <canvas> element itself.
-    // This automatically accounts for any margins, padding, or scrolling.
+function screenToImageCoords(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
-    
-    // Calculate the mouse coordinates relative to the canvas's top-left corner.
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    return { x, y };
-}
-// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
-// =================================================================
-
-function onCanvasMouseDown(e) {
-    if (e.button !== 0 || isAnyMenuVisible()) return;
-
-    if (isSpacePressed) {
-        e.preventDefault();
-        e.stopPropagation(); 
-        isPanning = true;
-        lastPanX = e.clientX;
-        lastPanY = e.clientY;
-        
-        document.body.style.overflow = 'hidden';
-        
-        window.addEventListener('mousemove', handleGlobalMouseMove);
-        window.addEventListener('mouseup', handleGlobalMouseUp);
-        return;
-    }
-
-    window.addEventListener('mousemove', handleGlobalMouseMove);
-    window.addEventListener('mouseup', handleGlobalMouseUp);
-
-    const { x, y } = getCanvasCoordinates(e);
-    selected = null;
-    hideAllMenus();
-
-    for (let i = annotations.length - 1; i >= 0; i--) {
-        if (hitTest(annotations[i], x, y)) {
-            const ann = annotations[i];
-            annotations.splice(i, 1);
-            annotations.push(ann);
-            dragging = ann;
-            offsetX = x - dragging.x;
-            offsetY = y - dragging.y;
-            selected = dragging;
-            setMode(selected.type);
-            if(selected.type !== 'highlighter') { color = selected.color || '#ff0000'; colorPicker.value = color; } else { colorPicker.value = selected.color; }
-            if (selected.type === 'arrow') arrowStyle = selected.style;
-            if (selected.type === 'text') { fontFamily = selected.font; fontSize = selected.size; }
-            if (selected.type === 'number') { numberSize = selected.size; }
-            draw();
-            return;
-        }
-    }
-
-    drawing = true;
-    startX = x;
-    startY = y;
-    shiftPressed = e.shiftKey;
-
-    if (mode === 'highlighter') {
-        highlighterPath = [{ x, y }];
-    } else if (['arrow', 'ellipse', 'rect'].includes(mode)) {
-        tempShape = { type: mode, x: startX, y: startY, color: colorPicker.value, style: arrowStyle };
-    } else if (mode === 'text') {
-        drawing = false;
-        showTextInput(x, y);
-    } else if (mode === 'number') {
-        drawing = false; 
-        const numberAnnotations = annotations.filter(a => a.type === 'number');
-        const newAnnotation = { type: 'number', x, y, num: numberAnnotations.length + 1, color: colorPicker.value, size: numberSize };
-        if (numberBgEnabled) newAnnotation.bgColor = numberBgColor;
-        annotations.push(newAnnotation);
-        draw();
-        saveState();
-    }
+    return {
+        x: (clientX - rect.left - viewX) / zoom,
+        y: (clientY - rect.top - viewY) / zoom
+    };
 }
 
-function handleGlobalMouseMove(e) {
-    if (isPanning) {
-        e.preventDefault(); 
-        const dx = e.clientX - lastPanX;
-        const dy = e.clientY - lastPanY;
-        canvasContainer.scrollLeft -= dx;
-        canvasContainer.scrollTop -= dy;
-        lastPanX = e.clientX;
-        lastPanY = e.clientY;
-        return;
-    }
-
-    if (!drawing && !dragging) return;
-    
-    lastMouseX = e.clientX;
-    lastMouseY = e.clientY;
-    const { x, y } = getCanvasCoordinates(e);
-    shiftPressed = e.shiftKey;
-
-    if (dragging) {
-        let dx = x - offsetX - dragging.x;
-        let dy = y - offsetY - dragging.y;
-        if(dragging.type === 'highlighter' && dragging.path) {
-            dragging.path.forEach(p => { p.x += dx; p.y += dy; });
-        }
-        dragging.x += dx;
-        dragging.y += dy;
-        if (dragging.x2) dragging.x2 += dx;
-        if (dragging.y2) dragging.y2 += dy;
-        draw();
-    } else if (drawing) {
-        if (mode === 'highlighter') {
-            highlighterPath.push({ x, y });
-            draw();
-        } else {
-            draw();
-            ctx.save();
-            ctx.strokeStyle = colorPicker.value;
-            ctx.lineWidth = 2.5;
-            let dx = x - startX, dy = y - startY;
-            if (mode === 'ellipse') {
-                let rx = Math.abs(dx / 2), ry = Math.abs(dy / 2);
-                let cx = startX + dx / 2, cy = startY + dy / 2;
-                if (shiftPressed) rx = ry = Math.max(rx, ry);
-                ctx.beginPath();
-                ctx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI);
-                ctx.stroke();
-            } else if (mode === 'rect') {
-                if (shiftPressed) {
-                    let side = Math.max(Math.abs(dx), Math.abs(dy));
-                    dx = side * Math.sign(dx || 1);
-                    dy = side * Math.sign(dy || 1);
-                }
-                ctx.strokeRect(startX, startY, dx, dy);
-            } else if (mode === 'arrow' && tempShape) {
-                tempShape.x2 = x;
-                tempShape.y2 = y;
-                drawArrow(tempShape, true);
-            }
-            ctx.restore();
-        }
-    }
+function imageToScreenCoords(imageX, imageY) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+        x: imageX * zoom + viewX + rect.left,
+        y: imageY * zoom + viewY + rect.top
+    };
 }
 
-function handleGlobalMouseUp(e) {
-    window.removeEventListener('mousemove', handleGlobalMouseMove);
-    window.removeEventListener('mouseup', handleGlobalMouseUp);
-
-    if (isPanning) {
-        isPanning = false;
-        document.body.style.overflow = '';
-        return;
-    }
-
-    if (dragging) {
-        dragging = null;
-        saveState();
-        return;
-    }
-
-    if (!drawing) return;
-    
-    const { x, y } = getCanvasCoordinates(e);
-    drawing = false;
-    if (mode === 'highlighter') {
-        finalizeHighlighterPath();
-    } else {
-        let dx = x - startX;
-        let dy = y - startY;
-        if (Math.hypot(dx, dy) < 5) {
-            tempShape = null;
-            draw();
-            return;
-        }
-        if (mode === 'ellipse') {
-            let rx = Math.abs(dx / 2), ry = Math.abs(dy / 2);
-            if (shiftPressed) rx = ry = Math.max(rx, ry);
-            annotations.push({ type: 'ellipse', x: startX + dx / 2, y: startY + dy / 2, rx, ry, color: colorPicker.value });
-        } else if (mode === 'rect') {
-            if (shiftPressed) {
-                let side = Math.max(Math.abs(dx), Math.abs(dy));
-                dx = side * Math.sign(dx || 1);
-                dy = side * Math.sign(dy || 1);
-            }
-            annotations.push({ type: 'rect', x: startX, y: startY, w: dx, h: dy, color: colorPicker.value });
-        } else if (mode === 'arrow' && tempShape) {
-            annotations.push({ ...tempShape, x2: x, y2: y });
-        }
-    }
-    tempShape = null;
-    saveState();
+function handleZoom(delta, pivotX, pivotY) {
+    if (!img) return;
+    const oldZoom = zoom;
+    const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom - delta * zoom * 0.1));
+    viewX = pivotX - (pivotX - viewX) * (newZoom / oldZoom);
+    viewY = pivotY - (pivotY - viewY) * (newZoom / oldZoom);
+    zoom = newZoom;
     draw();
 }
 
-function onCanvasContextMenu(e) {
-    e.preventDefault();
-    if(isAnyMenuVisible()) {
-        hideAllMenus();
-        return;
-    }
-    const { x, y } = getCanvasCoordinates(e);
-    for (let i = annotations.length - 1; i >= 0; i--) {
-        if (hitTest(annotations[i], x, y)) {
-            if (annotations[i].type === 'number') {
-                showMoveNumberInput(e, annotations[i]);
-                return;
-            }
-        }
-    }
+function zoomIn() { handleZoom(-2.5, canvas.width / 2, canvas.height / 2); }
+function zoomOut() { handleZoom(2.5, canvas.width / 2, canvas.height / 2); }
+
+function fitToScreen() {
+    if (!img) return;
+    const canvasAspect = canvas.width / canvas.height;
+    const imageAspect = img.width / img.height;
+    zoom = (imageAspect > canvasAspect) ? (canvas.width / img.width) : (canvas.height / img.height);
+    zoom = Math.min(zoom, 1);
+    viewX = (canvas.width - img.width * zoom) / 2;
+    viewY = (canvas.height - img.height * zoom) / 2;
+    draw();
 }
 
-function onKeyDown(e) {
-    if (e.code === 'Space') {
-        if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'SELECT') {
-            e.preventDefault();
-            e.stopPropagation();
-            if (!isSpacePressed) {
-                isSpacePressed = true;
-                canvasContainer.classList.add('is-panning');
-            }
-        }
-    }
-
-    if (e.key === 'Shift') shiftPressed = true;
-    if (e.ctrlKey || e.metaKey) {
-        if (e.key === 'z') { undo(); e.preventDefault(); }
-        if (e.key === 'y') { redo(); e.preventDefault(); }
-    }
-    if ((e.key === 'Delete' || e.key === 'Backspace') && selected && document.activeElement.tagName !== 'INPUT' && !document.activeElement.isContentEditable) {
-        const idx = annotations.indexOf(selected);
-        if (idx > -1) {
-            const type = selected.type;
-            annotations.splice(idx, 1);
-            selected = null;
-            if (type === 'number') reindexNumbers();
-            draw();
-            saveState();
-        }
-    }
-}
-
-function onKeyUp(e) {
-    if (e.code === 'Space') {
-        if (isSpacePressed) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-        isSpacePressed = false;
-        canvasContainer.classList.remove('is-panning');
-        if (isPanning) {
-            isPanning = false;
-            document.body.style.overflow = ''; 
-            window.removeEventListener('mousemove', handleGlobalMouseMove);
-            window.removeEventListener('mouseup', handleGlobalMouseUp);
-        }
-    }
-    if (e.key === 'Shift') shiftPressed = false;
+function fillScreen() {
+    if (!img) return;
+    const canvasAspect = canvas.width / canvas.height;
+    const imageAspect = img.width / img.height;
+    zoom = (imageAspect > canvasAspect) ? (canvas.height / img.height) : (canvas.width / img.width);
+    viewX = (canvas.width - img.width * zoom) / 2;
+    viewY = (canvas.height - img.height * zoom) / 2;
+    draw();
 }
 
 function setMode(m) {
-    if (drawing) {
-        handleGlobalMouseUp({ clientX: lastMouseX, clientY: lastMouseY });
-    }
+    if (drawing) onCanvasMouseUp({ clientX: lastMouseX, clientY: lastMouseY });
     mode = m;
     hideAllMenus();
     textInputBox.style.display = "none";
     document.querySelectorAll('.toolbar button.active').forEach(b => b.classList.remove('active'));
-    
-    const btn = document.getElementById({ 'number': 'numberBtn', 'ellipse': 'ellipseBtn', 'rect': 'rectBtn', 'arrow': 'arrowBtn', 'highlighter': 'highlighterBtn', 'text': 'textBtn' }[m]);
-    if(btn) btn.classList.add('active');
-    
+    document.getElementById({ 'number': 'numberBtn', 'ellipse': 'ellipseBtn', 'rect': 'rectBtn', 'arrow': 'arrowBtn', 'highlighter': 'highlighterBtn', 'text': 'textBtn' }[m])?.classList.add('active');
     if (m === 'highlighter') { if (colorPicker.value === color) colorPicker.value = '#ffff00'; }
     else { colorPicker.value = color; }
     updateCursor();
@@ -519,12 +305,14 @@ function showArrowMenu(e) { hideAllMenus(); arrowMenu.style.display = "block"; l
 
 function showMoveNumberInput(e, ann) {
     hideAllMenus();
-    const menuRect = canvas.getBoundingClientRect(); // Use canvas rect for positioning relative to it
-    const clickXOnCanvas = e.clientX - menuRect.left;
-    const clickYOnCanvas = e.clientY - menuRect.top;
+    const screenCoords = imageToScreenCoords(ann.x, ann.y);
+    const containerRect = canvasContainer.getBoundingClientRect();
 
-    moveNumberInput.style.left = `${clickXOnCanvas + 15}px`;
-    moveNumberInput.style.top = `${clickYOnCanvas + 15}px`;
+    const left = screenCoords.x - containerRect.left + 15;
+    const top = screenCoords.y - containerRect.top + 15;
+
+    moveNumberInput.style.left = `${left}px`;
+    moveNumberInput.style.top = `${top}px`;
     moveNumberInput.style.display = 'block';
     moveNumberInput.value = ann.num;
     moveNumberInput.focus();
@@ -556,30 +344,145 @@ function showMoveNumberInput(e, ann) {
 
 function reindexNumbers() { const numberAnnotations = annotations.filter(a => a.type === 'number'); numberAnnotations.forEach((ann, index) => { ann.num = index + 1; }); draw(); }
 function finalizeHighlighterPath() { if (highlighterPath.length > 1) { annotations.unshift({ type: 'highlighter', path: [...highlighterPath], color: colorPicker.value, lineWidth: 20 }); saveState();} highlighterPath = []; }
+function onCanvasContextMenu(e) { e.preventDefault(); if(isAnyMenuVisible()) { hideAllMenus(); return; } const {x,y} = screenToImageCoords(e.clientX, e.clientY); for (let i = annotations.length - 1; i >= 0; i--) { if (hitTest(annotations[i], x, y)) { if (annotations[i].type === 'number') { showMoveNumberInput(e, annotations[i]); return; } } } }
 
-function showTextInput(x, y) { 
-    textInputBox.style.display = "block"; 
-    textInputBox.value = ""; 
-    const rect = canvas.getBoundingClientRect();
-    // Position the input relative to the viewport, then the container will place it correctly
-    textInputBox.style.left = `${x + rect.left - canvasContainer.getBoundingClientRect().left}px`; 
-    textInputBox.style.top = `${y + rect.top - canvasContainer.getBoundingClientRect().top}px`;
-    textInputBox.style.fontFamily = fontFamily; 
-    textInputBox.style.fontSize = `${fontSize}px`; 
-    textInputBox.style.color = colorPicker.value; 
-    textInputBox.focus(); 
-    textInputBox.onkeydown = function(ev) { 
-        if (ev.key === "Enter" && textInputBox.value.trim()) { 
-            const newAnnotation = {type: 'text', x, y, text: textInputBox.value, color: colorPicker.value, font: fontFamily, size: fontSize }; 
-            if (textBgEnabled) newAnnotation.bgColor = textBgColor; 
-            annotations.push(newAnnotation); 
-            textInputBox.style.display = "none"; 
-            draw(); 
-            saveState(); 
-        } else if (ev.key === "Escape") { 
-            textInputBox.style.display = "none"; 
-        } 
-    }; 
+function onCanvasMouseDown(e) {
+    if (e.button !== 0 || isAnyMenuVisible()) return;
+    if (spacebarDown) { isPanning = true; panStart.x = e.clientX; panStart.y = e.clientY; updateCursor(); return; }
+    const { x, y } = screenToImageCoords(e.clientX, e.clientY);
+    selected = null;
+    hideAllMenus();
+    for (let i = annotations.length - 1; i >= 0; i--) {
+        if (hitTest(annotations[i], x, y)) {
+            const ann = annotations[i];
+            annotations.splice(i, 1);
+            annotations.push(ann);
+            dragging = ann;
+            offsetX = x - dragging.x; offsetY = y - dragging.y;
+            selected = dragging;
+            setMode(selected.type);
+            if(selected.type !== 'highlighter') { color = selected.color || '#ff0000'; colorPicker.value = color; } else { colorPicker.value = selected.color; }
+            if (selected.type === 'arrow') arrowStyle = selected.style;
+            if (selected.type === 'text') { fontFamily = selected.font; fontSize = selected.size; }
+            if (selected.type === 'number') { numberSize = selected.size; }
+            draw();
+            return;
+        }
+    }
+    drawing = true; startX = x; startY = y; shiftPressed = e.shiftKey;
+    if (mode === 'highlighter') { highlighterPath = [{x,y}]; }
+    else if (['arrow', 'ellipse', 'rect'].includes(mode)) { tempShape = { type: mode, x: startX, y: startY, color: colorPicker.value, style: arrowStyle }; }
+    else if (mode === 'text') {
+        drawing = false;
+        // *** THE FIX: Pass the raw mouse event AND the calculated image coordinates ***
+        showTextInput(e, x, y);
+    }
+    else if (mode === 'number') {
+        drawing = false;
+        const numberAnnotations = annotations.filter(a => a.type === 'number');
+        const newAnnotation = { type: 'number', x, y, num: numberAnnotations.length + 1, color: colorPicker.value, size: numberSize };
+        if (numberBgEnabled) newAnnotation.bgColor = numberBgColor;
+        annotations.push(newAnnotation);
+        draw();
+        saveState();
+    }
+}
+
+function onCanvasMouseMove(e) {
+    lastMouseX = e.clientX; lastMouseY = e.clientY;
+    if (isPanning) {
+        const dx = e.clientX - panStart.x; const dy = e.clientY - panStart.y;
+        viewX += dx; viewY += dy;
+        panStart.x = e.clientX; panStart.y = e.clientY;
+        draw();
+        return;
+    }
+    if (!drawing && !dragging) return;
+    const { x, y } = screenToImageCoords(e.clientX, e.clientY);
+    shiftPressed = e.shiftKey;
+    if (dragging) {
+        const dx = x - offsetX - dragging.x; const dy = y - offsetY - dragging.y;
+        dragging.x += dx; dragging.y += dy;
+        if (dragging.type === 'highlighter' && dragging.path) { dragging.path.forEach(p => { p.x += dx; p.y += dy; }); }
+        draw();
+    } else if (drawing) {
+        if (mode === 'highlighter') { highlighterPath.push({x, y}); draw(); }
+        else {
+            draw();
+            ctx.save();
+            ctx.translate(viewX, viewY); ctx.scale(zoom, zoom);
+            ctx.strokeStyle = colorPicker.value; ctx.lineWidth = 2.5 / zoom;
+            let dx = x - startX, dy = y - startY;
+            if (mode === 'ellipse') {
+                let rx = Math.abs(dx / 2), ry = Math.abs(dy / 2);
+                let cx = startX + dx / 2, cy = startY + dy / 2;
+                if (shiftPressed) rx = ry = Math.max(rx, ry);
+                ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI); ctx.stroke();
+            } else if (mode === 'rect') {
+                if (shiftPressed) { let side = Math.max(Math.abs(dx), Math.abs(dy)); dx = side * Math.sign(dx || 1); dy = side * Math.sign(dy || 1); }
+                ctx.strokeRect(startX, startY, dx, dy);
+            } else if (mode === 'arrow' && tempShape) {
+                tempShape.x2 = x; tempShape.y2 = y;
+                drawArrow.call({ctx: ctx, zoom: zoom}, tempShape, true, false);
+            }
+            ctx.restore();
+        }
+    }
+}
+
+function onCanvasMouseUp(e) {
+    if (isPanning) { isPanning = false; updateCursor(); return; }
+    if (dragging) { dragging = null; saveState(); return; }
+    if (!drawing) return;
+    drawing = false;
+    if (mode === 'highlighter') { finalizeHighlighterPath(); }
+    else {
+        const { x, y } = screenToImageCoords(e.clientX, e.clientY);
+        let dx = x - startX, dy = y - startY;
+        if (Math.hypot(dx, dy) < (5/zoom) && mode !== 'number') { tempShape = null; draw(); return; }
+        if (mode === 'ellipse') { let rx = Math.abs(dx / 2), ry = Math.abs(dy / 2); if (shiftPressed) rx = ry = Math.max(rx, ry); annotations.push({ type: 'ellipse', x: startX + dx / 2, y: startY + dy / 2, rx, ry, color: colorPicker.value }); }
+        else if (mode === 'rect') { if (shiftPressed) { let side = Math.max(Math.abs(dx), Math.abs(dy)); dx = side * Math.sign(dx || 1); dy = side * Math.sign(dy || 1); } annotations.push({ type: 'rect', x: startX, y: startY, w: dx, h: dy, color: colorPicker.value }); }
+        else if (mode === 'arrow' && tempShape) { annotations.push({ ...tempShape, x2: x, y2: y }); }
+        tempShape = null; saveState();
+    }
+    draw();
+}
+
+function onCanvasMouseLeave() { isPanning = false; updateCursor(); if (drawing) onCanvasMouseUp({ clientX: lastMouseX, clientY: lastMouseY }); }
+function onCanvasWheel(e) { if (!img) return; e.preventDefault(); const rect = canvas.getBoundingClientRect(); handleZoom(Math.sign(e.deltaY), e.clientX - rect.left, e.clientY - rect.top); }
+function onKeyDown(e) { if (e.key === ' ' && !spacebarDown && document.activeElement.tagName !== 'INPUT' && !isAnyMenuVisible()) { spacebarDown = true; updateCursor(); e.preventDefault(); } if (e.ctrlKey || e.metaKey) { if (e.key === 'z') { undo(); e.preventDefault(); } if (e.key === 'y') { redo(); e.preventDefault(); } } if ((e.key === 'Delete' || e.key === 'Backspace') && selected && document.activeElement.tagName !== 'INPUT') { const idx = annotations.indexOf(selected); if (idx > -1) { const type = selected.type; annotations.splice(idx, 1); selected = null; if (type === 'number') reindexNumbers(); else draw(); saveState(); } } }
+function onKeyUp(e) { if (e.key === 'Shift') shiftPressed = false; if (e.key === ' ') { spacebarDown = false; updateCursor(); e.preventDefault(); } }
+
+function showTextInput(event, imageX, imageY) {
+    const containerRect = canvasContainer.getBoundingClientRect();
+
+    textInputBox.style.display = "block";
+    textInputBox.value = "";
+    
+    // Direct calculation: mouse position relative to the container
+    const left = event.clientX;
+    const top = event.clientY;
+
+    textInputBox.style.left = `${left}px`;
+    textInputBox.style.top = `${top}px`;
+    
+    textInputBox.style.fontFamily = fontFamily;
+    textInputBox.style.fontSize = `${fontSize * zoom}px`;
+    textInputBox.style.color = colorPicker.value;
+    textInputBox.focus();
+    textInputBox.onkeydown = function(ev) {
+        if (ev.key === "Enter" && textInputBox.value.trim()) {
+            // Use the pre-calculated imageX and imageY to create the annotation
+            const newAnnotation = {type: 'text', x: imageX, y: imageY, text: textInputBox.value, color: colorPicker.value, font: fontFamily, size: fontSize };
+            if (textBgEnabled) newAnnotation.bgColor = textBgColor;
+            annotations.push(newAnnotation);
+            textInputBox.style.display = "none";
+            draw();
+            saveState();
+        } else if (ev.key === "Escape") {
+            textInputBox.style.display = "none";
+        }
+    };
 }
 
 function draw() {
@@ -629,20 +532,10 @@ function drawAnnotation(ann) {
     renderCtx.restore();
 }
 
-function hitTest(ann, x, y) {
-    const tolerance = 10;
-    if (ann.type === 'highlighter') { for (let i = 0; i < ann.path.length - 1; i++) { if (distToSegment({x,y}, ann.path[i], ann.path[i+1]) < ann.lineWidth / 2) return true; } return false; }
-    if (ann.type === 'arrow') return ann.x2 && ann.y2 ? distToSegment({ x, y }, { x: ann.x, y: ann.y }, { x: ann.x2, y: ann.y2 }) < tolerance : false;
-    if (ann.type === 'number') return Math.hypot(ann.x - x, ann.y - y) < (ann.size || 18) + tolerance / 2;
-    if (ann.type === 'ellipse') { const k = ((x - ann.x) ** 2) / ((ann.rx+tolerance) ** 2) + ((y - ann.y) ** 2) / ((ann.ry+tolerance) ** 2); return k <= 1; }
-    if (ann.type === 'rect') { const x1 = Math.min(ann.x, ann.x + ann.w), x2 = Math.max(ann.x, ann.x + ann.w); const y1 = Math.min(ann.y, ann.y + ann.h), y2 = Math.max(ann.y, ann.y + ann.h); return x > x1 - tolerance/2 && x < x2 + tolerance/2 && y > y1 - tolerance/2 && y < y2 + tolerance/2; }
-    if (ann.type === 'text') { ctx.save(); ctx.font = `${ann.size}px ${ann.font}`; const metrics = ctx.measureText(ann.text); const padding = ann.bgColor ? 4 : 0; const w = metrics.width + padding * 2; const h = ann.size + padding; const x1 = ann.x - padding; const y1 = ann.y - padding / 2; ctx.restore(); return (x > x1 && x < x1 + w && y > y1 && y < y1 + h); }
-    return false;
-}
-
+function hitTest(ann, x, y) { const tolerance = 10 / zoom; if (ann.type === 'highlighter') { for (let i = 0; i < ann.path.length - 1; i++) { if (distToSegment({x,y}, ann.path[i], ann.path[i+1]) < ann.lineWidth / 2) return true; } return false; } if (ann.type === 'arrow') return ann.x2 && ann.y2 ? distToSegment({ x, y }, { x: ann.x, y: ann.y }, { x: ann.x2, y: ann.y2 }) < tolerance : false; if (ann.type === 'number') return Math.hypot(ann.x - x, ann.y - y) < (ann.size || 18) + tolerance / 2; if (ann.type === 'ellipse') return ((x - ann.x) ** 2) / ((ann.rx || 1) ** 2) + ((y - ann.y) ** 2) / ((ann.ry || 1) ** 2) <= 1.2; if (ann.type === 'rect') { const x1 = Math.min(ann.x, ann.x + ann.w), x2 = Math.max(ann.x, ann.x + ann.w); const y1 = Math.min(ann.y, ann.y + ann.h), y2 = Math.max(ann.y, ann.y + ann.h); return x > x1 - tolerance/2 && x < x2 + tolerance/2 && y > y1 - tolerance/2 && y < y2 + tolerance/2; } if (ann.type === 'text') { ctx.save(); ctx.font = `${ann.size}px ${ann.font}`; const metrics = ctx.measureText(ann.text); const padding = ann.bgColor ? 4 : 0; const w = metrics.width + padding * 2; const h = ann.size + padding; const x1 = ann.x - padding; const y1 = ann.y - padding / 2; ctx.restore(); return (x > x1 && x < x1 + w && y > y1 && y < y1 + h); } return false; }
 function createBrush() { const brushCanvas = document.createElement('canvas'); const brushCtx = brushCanvas.getContext('2d'); const size = 50; brushCanvas.width = size; brushCanvas.height = size; const gradient = brushCtx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2); gradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)'); gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.2)'); gradient.addColorStop(1, 'rgba(255, 255, 255, 0)'); brushCtx.fillStyle = gradient; brushCtx.fillRect(0, 0, size, size); const imageData = brushCtx.getImageData(0, 0, size, size); const pixels = imageData.data; for (let i = 0; i < pixels.length; i += 4) { if (pixels[i + 3] > 0) { const noise = (Math.random() - 0.5) * 80; pixels[i + 3] = Math.max(0, pixels[i + 3] - noise * (1 - pixels[i + 3] / 255)); } } brushCtx.putImageData(imageData, 0, 0); brushImage = new Image(); brushImage.onload = () => { isBrushReady = true; }; brushImage.src = brushCanvas.toDataURL(); }
 function handleFile(file) { if (!file) return; const reader = new FileReader(); if (file.type === 'application/json') { reader.onload = e => loadProject(JSON.parse(e.target.result)); reader.readAsText(file); } else if (file.type.startsWith('image/')) { reader.onload = e => loadImage(e.target.result); reader.readAsDataURL(file); } else { alert('不支援的檔案格式。請選擇圖片檔或 .json 專案檔。'); } }
-function loadImage(src, callback) { img = new window.Image(); img.onload = () => { canvas.width = img.width; canvas.height = img.height; canvasContainer.classList.remove('empty'); if (!callback) { annotations = []; canvasContainer.scrollTop = 0; canvasContainer.scrollLeft = 0; } saveState(); draw(); updateClearButton(); if (callback) callback(); }; img.src = src; }
+function loadImage(src, callback) { img = new window.Image(); img.onload = () => { canvasContainer.classList.remove('empty'); if (!callback) { annotations = []; fillScreen(); saveState(); } else { fillScreen(); } updateClearButton(); updateToolbarState(); if (callback) callback(); }; img.src = src; }
 function saveProject() { const fileName = prompt("請輸入專案檔名：", "my-annotation-project"); if (!fileName) return; if (!img) { alert("請先載入一張圖片才能儲存專案。"); return; } const projectData = { imageData: img.src, annotations: annotations }; const jsonString = JSON.stringify(projectData, null, 2); const blob = new Blob([jsonString], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${fileName}.json`; a.click(); URL.revokeObjectURL(url); }
 function loadProject(projectData) { if (!projectData.imageData || !projectData.annotations) { alert('無效的專案檔。'); return; } loadImage(projectData.imageData, () => { annotations = projectData.annotations; if (annotations.length > 0) { const firstAnn = annotations.find(a=>a.type !== 'highlighter'); if(firstAnn) { color = firstAnn.color || '#ff0000'; colorPicker.value = color; }} reindexNumbers(); saveState(); }); }
 function downloadImage() { const fileName = prompt("請輸入圖片檔名：", "annotated-image"); if (!fileName || !img) return; selected = null; hideAllMenus(); const tempCanvas = document.createElement('canvas'); tempCanvas.width = img.width; tempCanvas.height = img.height; const tempCtx = tempCanvas.getContext('2d'); tempCtx.drawImage(img, 0, 0); annotations.forEach(ann => { drawAnnotation.call({ ctx: tempCtx, zoom: 1, selected: null }, ann); }); requestIdleCallback(() => { tempCanvas.toBlob(blob => { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${fileName}.png`; a.click(); URL.revokeObjectURL(url); }); draw(); }); }
@@ -656,39 +549,10 @@ function drawBrushStroke(targetCtx, p1, p2, isHead) { if (!isBrushReady) return;
 function drawArrowHead(x1, y1, x2, y2, color) { drawArrowHeadAt.call(this, x2, y2, Math.atan2(y2 - y1, x2 - x1), color); }
 function drawArrowHeadAt(x, y, angle, color) { let len = 18/this.zoom; const angleOffset = Math.PI / 6; const currentCtx = this.ctx; currentCtx.save(); currentCtx.fillStyle = color; currentCtx.beginPath(); currentCtx.moveTo(x, y); currentCtx.lineTo(x - len * Math.cos(angle - angleOffset), y - len * Math.sin(angle - angleOffset)); currentCtx.lineTo(x - len * Math.cos(angle + angleOffset), y - len * Math.sin(angle + angleOffset)); currentCtx.closePath(); currentCtx.fill(); currentCtx.restore(); }
 function distToSegment(p, v, w) { let l2 = (w.x-v.x)**2 + (w.y-v.y)**2; if (l2 === 0) return Math.hypot(p.x-v.x,p.y-v.y); let t = ((p.x-v.x)*(w.x-v.x)+(p.y-v.y)*(w.y-v.y))/l2; t = Math.max(0,Math.min(1,t)); return Math.hypot(p.x - (v.x + t*(w.x-v.x)), p.y - (v.y + t*(w.y-v.y))); }
+function saveState() { if (historyIndex < history.length - 1) { history = history.slice(0, historyIndex + 1); } history.push(JSON.parse(JSON.stringify(annotations))); historyIndex = history.length - 1; updateToolbarState(); }
+function undo() { if (historyIndex > 0) { historyIndex--; annotations = JSON.parse(JSON.stringify(history[historyIndex])); draw(); updateToolbarState(); } }
+function redo() { if (historyIndex < history.length - 1) { historyIndex++; annotations = JSON.parse(JSON.stringify(history[historyIndex])); draw(); updateToolbarState(); } }
+function updateToolbarState() { const hasImage = !!img; updateClearButton(); undoBtn.disabled = historyIndex <= 0; redoBtn.disabled = historyIndex >= history.length - 1; zoomInBtn.disabled = !hasImage; zoomOutBtn.disabled = !hasImage; zoomFitBtn.disabled = !hasImage; document.querySelector('button[onclick="saveProject()"]').disabled = !hasImage; document.querySelector('button[onclick="copyImage()"]').disabled = !hasImage; document.querySelector('button[onclick="downloadImage()"]').disabled = !hasImage; }
 
-function saveState() {
-    if (historyIndex < history.length - 1) {
-        history = history.slice(0, historyIndex + 1);
-    }
-    const state = JSON.stringify(annotations);
-    if(history.length > 0 && history[historyIndex] === state) return;
-    history.push(state);
-    historyIndex = history.length - 1;
-    updateUndoRedoButtons();
-}
-
-function undo() {
-    if (historyIndex > 0) {
-        historyIndex--;
-        annotations = JSON.parse(history[historyIndex]);
-        draw();
-        updateUndoRedoButtons();
-    }
-}
-
-function redo() {
-    if (historyIndex < history.length - 1) {
-        historyIndex++;
-        annotations = JSON.parse(history[historyIndex]);
-        draw();
-        updateUndoRedoButtons();
-    }
-}
-
-function updateUndoRedoButtons() {
-    undoBtn.disabled = historyIndex <= 0;
-    redoBtn.disabled = historyIndex >= history.length - 1;
-}
-
+// Run the application
 initialize();

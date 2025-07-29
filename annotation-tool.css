@@ -18,7 +18,6 @@ body {
 }
 
 #app-container {
-    position: relative; /* ADDED: Set as positioning context for the version number */
     width: 100%;
     max-width: 1200px; /* Set a max width for large screens */
     display: flex;
@@ -71,50 +70,40 @@ h2 {
 .toolbar-btn svg { width: 22px; height: 22px; stroke: #343a40; }
 .toolbar-btn.active svg { stroke: #0056b3; }
 
-/* --- Canvas Area (FINAL FIX) --- */
+/* --- Canvas Area --- */
 #canvas-container {
     position: relative;
-    display: block;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     background-color: #fff;
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     border: 1px solid #ddd;
-    overflow: auto;
-    max-height: 75vh;
-    height: 450px;
-    cursor: crosshair;
+    overflow: hidden;
+    
+    /* --- KEY CHANGES for 16:9 Aspect Ratio --- */
+    width: 100%; /* Ensure container width is 100% of its parent */
+    aspect-ratio: 16 / 9; /* Force a 16:9 aspect ratio */
+    /* flex-grow and min-height are no longer needed */
 }
 
-#canvas-container::-webkit-scrollbar {
-    display: none;
-}
-#canvas-container {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-}
-
-#canvas-container.is-panning {
-    cursor: grab;
-}
-#canvas-container.is-panning:active {
-    cursor: grabbing;
-}
-
-/* --- Canvas Element (FINAL FIX) --- */
 #canvas {
-    display: block;
-    margin: 0 auto;
-    background-color: transparent;
+    cursor: crosshair;
+    background-color: transparent; /* Canvas itself is transparent */
+
+    /* Make the canvas element fill its container */
+    width: 100%;
+    height: 100%;
 }
 
 #image-placeholder {
     position: absolute;
     top: 0; left: 0; width: 100%; height: 100%;
-    box-sizing: border-box;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     color: #6c757d; cursor: pointer; text-align: center;
     border: 2px dashed #ced4da;
-    border-radius: 8px;
+    border-radius: 8px; /* Match container */
     transition: background-color 0.2s; pointer-events: none;
     box-sizing: border-box; /* Include border in size calculation */
 }
@@ -150,15 +139,4 @@ p {
     font-size: 0.9rem;
     line-height: 1.6;
     flex-shrink: 0;
-}
-
-/* --- ADDED: Version Info (Corner) --- */
-.version-corner {
-    position: absolute;
-    bottom: 1rem;       /* Adjust as needed */
-    right: 1.5rem;      /* Adjust as needed */
-    font-size: 0.8rem;
-    color: #adb5bd;      /* A light, unobtrusive color */
-    font-family: monospace;
-    pointer-events: none; /* Allows clicking through the element */
 }
