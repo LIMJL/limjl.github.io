@@ -40,7 +40,12 @@ const MIN_ZOOM = 0.1, MAX_ZOOM = 10;
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const colorPicker = document.getElementById('colorPicker');
-const textInputBox = document.getElementById('textInputBox');
+// START: Updated Text Input elements
+const textInputContainer = document.getElementById('textInputContainer');
+const textInputArea = document.getElementById('textInputArea');
+const textConfirmBtn = document.getElementById('textConfirmBtn');
+const textCancelBtn = document.getElementById('textCancelBtn');
+// END: Updated Text Input elements
 const moveNumberInput = document.getElementById('moveNumberInput');
 const imgInput = document.getElementById('imgInput');
 const canvasContainer = document.getElementById('canvas-container');
@@ -130,7 +135,7 @@ function setupEventListeners() {
     arrowBtn.addEventListener('contextmenu', e => { if (arrowBtn.classList.contains("active")) { e.preventDefault(); showArrowMenu(e); } });
     
     document.addEventListener('mousedown', e => {
-        const isClickingOnMenu = [circleMenu, textMenu, arrowMenu, moveNumberInput].some(menu => menu.contains(e.target));
+        const isClickingOnMenu = [circleMenu, textMenu, arrowMenu, moveNumberInput, textInputContainer].some(menu => menu.contains(e.target));
         const isClickingOnButton = [...document.querySelectorAll('.toolbar-btn, .toggle-btn, .text-btn, .arrow-btn')].some(btn => btn.contains(e.target));
         if (!isClickingOnMenu && !isClickingOnButton) hideAllMenus();
     });
@@ -249,7 +254,7 @@ function setMode(m) {
     if (drawing) onCanvasMouseUp({ clientX: lastMouseX, clientY: lastMouseY });
     mode = m;
     hideAllMenus();
-    textInputBox.style.display = "none";
+    textInputContainer.style.display = "none";
     document.querySelectorAll('.toolbar button.active').forEach(b => b.classList.remove('active'));
     document.getElementById({ 'number': 'numberBtn', 'ellipse': 'ellipseBtn', 'rect': 'rectBtn', 'arrow': 'arrowBtn', 'highlighter': 'highlighterBtn', 'text': 'textBtn' }[m])?.classList.add('active');
     if (m === 'highlighter') { if (colorPicker.value === color) colorPicker.value = '#ffff00'; }
@@ -265,8 +270,11 @@ function updateCursor() {
     }
 }
 
-function isAnyMenuVisible() { return [circleMenu, textMenu, arrowMenu, moveNumberInput].some(m => m.style.display === 'block'); }
-function hideAllMenus() { [circleMenu, textMenu, arrowMenu, moveNumberInput].forEach(m => m.style.display = 'none'); }
+function isAnyMenuVisible() {
+    const popups = [circleMenu, textMenu, arrowMenu, moveNumberInput, textInputContainer];
+    return popups.some(p => p.style.display === 'block' || p.style.display === 'flex');
+}
+function hideAllMenus() { [circleMenu, textMenu, arrowMenu, moveNumberInput, textInputContainer].forEach(m => m.style.display = 'none'); }
 
 function showCircleMenu(e) {
     hideAllMenus(); circleMenu.style.display = "block"; const rect = numberBtn.getBoundingClientRect(); circleMenu.style.left = `${rect.left + window.scrollX}px`; circleMenu.style.top = `${rect.bottom + window.scrollY + 4}px`;
@@ -374,8 +382,8 @@ function onCanvasMouseDown(e) {
     else if (['arrow', 'ellipse', 'rect'].includes(mode)) { tempShape = { type: mode, x: startX, y: startY, color: colorPicker.value, style: arrowStyle }; }
     else if (mode === 'text') {
         drawing = false;
-        // *** THE FIX: Pass the raw mouse event AND the calculated image coordinates ***
         showTextInput(e, x, y);
+        e.stopPropagation(); // <-- BUG FIX: Stop event from bubbling to document listener
     }
     else if (mode === 'number') {
         drawing = false;
@@ -450,40 +458,80 @@ function onCanvasMouseUp(e) {
 
 function onCanvasMouseLeave() { isPanning = false; updateCursor(); if (drawing) onCanvasMouseUp({ clientX: lastMouseX, clientY: lastMouseY }); }
 function onCanvasWheel(e) { if (!img) return; e.preventDefault(); const rect = canvas.getBoundingClientRect(); handleZoom(Math.sign(e.deltaY), e.clientX - rect.left, e.clientY - rect.top); }
-function onKeyDown(e) { if (e.key === ' ' && !spacebarDown && document.activeElement.tagName !== 'INPUT' && !isAnyMenuVisible()) { spacebarDown = true; updateCursor(); e.preventDefault(); } if (e.ctrlKey || e.metaKey) { if (e.key === 'z') { undo(); e.preventDefault(); } if (e.key === 'y') { redo(); e.preventDefault(); } } if ((e.key === 'Delete' || e.key === 'Backspace') && selected && document.activeElement.tagName !== 'INPUT') { const idx = annotations.indexOf(selected); if (idx > -1) { const type = selected.type; annotations.splice(idx, 1); selected = null; if (type === 'number') reindexNumbers(); else draw(); saveState(); } } }
+function onKeyDown(e) { if (e.key === ' ' && !spacebarDown && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA' && !isAnyMenuVisible()) { spacebarDown = true; updateCursor(); e.preventDefault(); } if (e.ctrlKey || e.metaKey) { if (e.key === 'z') { undo(); e.preventDefault(); } if (e.key === 'y') { redo(); e.preventDefault(); } } if ((e.key === 'Delete' || e.key === 'Backspace') && selected && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') { const idx = annotations.indexOf(selected); if (idx > -1) { const type = selected.type; annotations.splice(idx, 1); selected = null; if (type === 'number') reindexNumbers(); else draw(); saveState(); } } }
 function onKeyUp(e) { if (e.key === 'Shift') shiftPressed = false; if (e.key === ' ') { spacebarDown = false; updateCursor(); e.preventDefault(); } }
 
+// --- START: New Text Input Logic ---
+
+function confirmTextInput() {
+    const text = textInputArea.value;
+    if (!text.trim()) {
+        cancelTextInput();
+        return;
+    }
+
+    const imageX = parseFloat(textInputContainer.dataset.imageX);
+    const imageY = parseFloat(textInputContainer.dataset.imageY);
+
+    const newAnnotation = {
+        type: 'text',
+        x: imageX,
+        y: imageY,
+        text: text,
+        color: colorPicker.value,
+        font: fontFamily,
+        size: fontSize
+    };
+    if (textBgEnabled) newAnnotation.bgColor = textBgColor;
+    
+    annotations.push(newAnnotation);
+    cancelTextInput();
+    draw();
+    saveState();
+}
+
+function cancelTextInput() {
+    textInputContainer.style.display = "none";
+}
+
 function showTextInput(event, imageX, imageY) {
-    const containerRect = canvasContainer.getBoundingClientRect();
-
-    textInputBox.style.display = "block";
-    textInputBox.value = "";
+    hideAllMenus();
+    textInputContainer.style.display = "flex";
+    textInputArea.value = "";
     
-    // Direct calculation: mouse position relative to the container
-    const left = event.clientX;
-    const top = event.clientY;
-
-    textInputBox.style.left = `${left}px`;
-    textInputBox.style.top = `${top}px`;
+    textInputContainer.style.left = `${event.clientX}px`;
+    textInputContainer.style.top = `${event.clientY}px`;
     
-    textInputBox.style.fontFamily = fontFamily;
-    textInputBox.style.fontSize = `${fontSize * zoom}px`;
-    textInputBox.style.color = colorPicker.value;
-    textInputBox.focus();
-    textInputBox.onkeydown = function(ev) {
-        if (ev.key === "Enter" && textInputBox.value.trim()) {
-            // Use the pre-calculated imageX and imageY to create the annotation
-            const newAnnotation = {type: 'text', x: imageX, y: imageY, text: textInputBox.value, color: colorPicker.value, font: fontFamily, size: fontSize };
-            if (textBgEnabled) newAnnotation.bgColor = textBgColor;
-            annotations.push(newAnnotation);
-            textInputBox.style.display = "none";
-            draw();
-            saveState();
+    textInputContainer.dataset.imageX = imageX;
+    textInputContainer.dataset.imageY = imageY;
+    
+    textInputArea.style.fontFamily = fontFamily;
+    textInputArea.style.fontSize = `${fontSize * zoom}px`;
+    textInputArea.style.color = colorPicker.value;
+
+    textInputArea.style.height = 'auto';
+    textInputArea.style.height = (textInputArea.scrollHeight) + 'px';
+
+    textInputArea.focus();
+
+    textConfirmBtn.onclick = confirmTextInput;
+    textCancelBtn.onclick = cancelTextInput;
+
+    textInputArea.oninput = function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
+    };
+
+    textInputArea.onkeydown = function(ev) {
+        if (ev.key === "Enter" && ev.shiftKey) {
+            ev.preventDefault();
+            confirmTextInput();
         } else if (ev.key === "Escape") {
-            textInputBox.style.display = "none";
+            cancelTextInput();
         }
     };
 }
+// --- END: New Text Input Logic ---
 
 function draw() {
     requestIdleCallback(() => {
@@ -527,12 +575,59 @@ function drawAnnotation(ann) {
         if (ann.type === 'number') { const radius = ann.size; renderCtx.beginPath(); renderCtx.arc(ann.x, ann.y, radius, 0, 2 * Math.PI); if (ann.bgColor) { renderCtx.fillStyle = ann.bgColor; renderCtx.fill(); } renderCtx.stroke(); renderCtx.fillStyle = ann.color || "#ff0000"; renderCtx.font = `bold ${Math.round(radius * 1.1)}px Arial`; renderCtx.textAlign = 'center'; renderCtx.textBaseline = 'middle'; renderCtx.shadowBlur = 0; renderCtx.fillText(ann.num, ann.x, ann.y); }
         else if (ann.type === 'ellipse') { renderCtx.beginPath(); renderCtx.ellipse(ann.x, ann.y, ann.rx, ann.ry, 0, 0, 2 * Math.PI); renderCtx.stroke(); }
         else if (ann.type === 'rect') { renderCtx.strokeRect(ann.x, ann.y, ann.w, ann.h); }
-        else if (ann.type === 'text') { renderCtx.font = `${ann.size}px ${ann.font}`; renderCtx.textAlign = 'left'; renderCtx.textBaseline = 'top'; if (ann.bgColor) { const metrics = renderCtx.measureText(ann.text); const padding = 4; const rectH = ann.size + padding; const rectW = metrics.width + padding * 2; const rectX = ann.x - padding; const rectY = ann.y - padding / 2; renderCtx.fillStyle = ann.bgColor; renderCtx.fillRect(rectX, rectY, rectW, rectH); } renderCtx.fillStyle = ann.color || "#ff0000"; renderCtx.fillText(ann.text, ann.x, ann.y); }
+        else if (ann.type === 'text') {
+            renderCtx.font = `${ann.size}px ${ann.font}`;
+            renderCtx.textAlign = 'left';
+            renderCtx.textBaseline = 'top';
+            const lines = ann.text.split('\n');
+            const lineHeight = ann.size * 1.2;
+
+            if (ann.bgColor) {
+                const padding = 4;
+                let maxWidth = 0;
+                lines.forEach(line => {
+                    const metrics = renderCtx.measureText(line);
+                    if (metrics.width > maxWidth) {
+                        maxWidth = metrics.width;
+                    }
+                });
+                const rectW = maxWidth + padding * 2;
+                const rectH = (lines.length * lineHeight) - (ann.size * 0.2) + padding;
+                const rectX = ann.x - padding;
+                const rectY = ann.y - padding / 2;
+                renderCtx.fillStyle = ann.bgColor;
+                renderCtx.fillRect(rectX, rectY, rectW, rectH);
+            }
+
+            renderCtx.fillStyle = ann.color || "#ff0000";
+            lines.forEach((line, index) => {
+                renderCtx.fillText(line, ann.x, ann.y + (index * lineHeight));
+            });
+        }
     }
     renderCtx.restore();
 }
 
-function hitTest(ann, x, y) { const tolerance = 10 / zoom; if (ann.type === 'highlighter') { for (let i = 0; i < ann.path.length - 1; i++) { if (distToSegment({x,y}, ann.path[i], ann.path[i+1]) < ann.lineWidth / 2) return true; } return false; } if (ann.type === 'arrow') return ann.x2 && ann.y2 ? distToSegment({ x, y }, { x: ann.x, y: ann.y }, { x: ann.x2, y: ann.y2 }) < tolerance : false; if (ann.type === 'number') return Math.hypot(ann.x - x, ann.y - y) < (ann.size || 18) + tolerance / 2; if (ann.type === 'ellipse') return ((x - ann.x) ** 2) / ((ann.rx || 1) ** 2) + ((y - ann.y) ** 2) / ((ann.ry || 1) ** 2) <= 1.2; if (ann.type === 'rect') { const x1 = Math.min(ann.x, ann.x + ann.w), x2 = Math.max(ann.x, ann.x + ann.w); const y1 = Math.min(ann.y, ann.y + ann.h), y2 = Math.max(ann.y, ann.y + ann.h); return x > x1 - tolerance/2 && x < x2 + tolerance/2 && y > y1 - tolerance/2 && y < y2 + tolerance/2; } if (ann.type === 'text') { ctx.save(); ctx.font = `${ann.size}px ${ann.font}`; const metrics = ctx.measureText(ann.text); const padding = ann.bgColor ? 4 : 0; const w = metrics.width + padding * 2; const h = ann.size + padding; const x1 = ann.x - padding; const y1 = ann.y - padding / 2; ctx.restore(); return (x > x1 && x < x1 + w && y > y1 && y < y1 + h); } return false; }
+function hitTest(ann, x, y) { const tolerance = 10 / zoom; if (ann.type === 'highlighter') { for (let i = 0; i < ann.path.length - 1; i++) { if (distToSegment({x,y}, ann.path[i], ann.path[i+1]) < ann.lineWidth / 2) return true; } return false; } if (ann.type === 'arrow') return ann.x2 && ann.y2 ? distToSegment({ x, y }, { x: ann.x, y: ann.y }, { x: ann.x2, y: ann.y2 }) < tolerance : false; if (ann.type === 'number') return Math.hypot(ann.x - x, ann.y - y) < (ann.size || 18) + tolerance / 2; if (ann.type === 'ellipse') return ((x - ann.x) ** 2) / ((ann.rx || 1) ** 2) + ((y - ann.y) ** 2) / ((ann.ry || 1) ** 2) <= 1.2; if (ann.type === 'rect') { const x1 = Math.min(ann.x, ann.x + ann.w), x2 = Math.max(ann.x, ann.x + ann.w); const y1 = Math.min(ann.y, ann.y + ann.h), y2 = Math.max(ann.y, ann.y + ann.h); return x > x1 - tolerance/2 && x < x2 + tolerance/2 && y > y1 - tolerance/2 && y < y2 + tolerance/2; } if (ann.type === 'text') {
+        ctx.save();
+        ctx.font = `${ann.size}px ${ann.font}`;
+        const lines = ann.text.split('\n');
+        const lineHeight = ann.size * 1.2;
+        const padding = ann.bgColor ? 4 : 0;
+        let maxWidth = 0;
+        lines.forEach(line => {
+            const metrics = ctx.measureText(line);
+            if (metrics.width > maxWidth) maxWidth = metrics.width;
+        });
+        const w = maxWidth + padding * 2;
+        const h = (lines.length * lineHeight) - (ann.size * 0.2) + padding;
+        const x1 = ann.x - padding;
+        const y1 = ann.y - padding / 2;
+        ctx.restore();
+        return (x > x1 && x < x1 + w && y > y1 && y < y1 + h);
+    }
+    return false;
+}
 function createBrush() { const brushCanvas = document.createElement('canvas'); const brushCtx = brushCanvas.getContext('2d'); const size = 50; brushCanvas.width = size; brushCanvas.height = size; const gradient = brushCtx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2); gradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)'); gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.2)'); gradient.addColorStop(1, 'rgba(255, 255, 255, 0)'); brushCtx.fillStyle = gradient; brushCtx.fillRect(0, 0, size, size); const imageData = brushCtx.getImageData(0, 0, size, size); const pixels = imageData.data; for (let i = 0; i < pixels.length; i += 4) { if (pixels[i + 3] > 0) { const noise = (Math.random() - 0.5) * 80; pixels[i + 3] = Math.max(0, pixels[i + 3] - noise * (1 - pixels[i + 3] / 255)); } } brushCtx.putImageData(imageData, 0, 0); brushImage = new Image(); brushImage.onload = () => { isBrushReady = true; }; brushImage.src = brushCanvas.toDataURL(); }
 function handleFile(file) { if (!file) return; const reader = new FileReader(); if (file.type === 'application/json') { reader.onload = e => loadProject(JSON.parse(e.target.result)); reader.readAsText(file); } else if (file.type.startsWith('image/')) { reader.onload = e => loadImage(e.target.result); reader.readAsDataURL(file); } else { alert('不支援的檔案格式。請選擇圖片檔或 .json 專案檔。'); } }
 function loadImage(src, callback) { img = new window.Image(); img.onload = () => { canvasContainer.classList.remove('empty'); if (!callback) { annotations = []; fillScreen(); saveState(); } else { fillScreen(); } updateClearButton(); updateToolbarState(); if (callback) callback(); }; img.src = src; }

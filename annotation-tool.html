@@ -2,14 +2,14 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>多功能圖片標註工具 (v6.1)</title>
+    <title>多功能圖片標註工具 (v6.2)</title>
     <!-- 引用外部 CSS 檔案 -->
     <link rel="stylesheet" href="annotation-tool.css">
 </head>
 <body>
 <!-- START: Add this wrapper div -->
 <div id="app-container">
-    <h2>多功能圖片標註工具 (v6.1)</h2>
+    <h2>多功能圖片標註工具 (v6.2)</h2>
     <div class="toolbar">
         <input type="file" id="imgInput" accept="image/*, application/json" style="display: none;">
         <button id="clearBtn" class="toolbar-btn" onclick="handleClearOrNew()" title="清除畫布/新增圖片"></button>
@@ -42,7 +42,17 @@
             <span>將圖片或專案檔 (.json) 拖曳至此<br>或點擊選擇檔案</span>
         </div>
         <canvas id="canvas"></canvas>
-        <input type="text" id="textInputBox">
+        
+        <!-- START: New Text Input Widget -->
+        <div id="textInputContainer">
+            <textarea id="textInputArea" rows="1" placeholder="輸入文字..."></textarea>
+            <div class="text-input-controls">
+                <button id="textConfirmBtn" title="確認 (Shift+Enter)">✔</button>
+                <button id="textCancelBtn" title="取消 (Esc)">✖</button>
+            </div>
+        </div>
+        <!-- END: New Text Input Widget -->
+        
         <input type="number" id="moveNumberInput" min="1">
         <div id="circleMenu"></div>
         <div id="textMenu"></div>
@@ -50,8 +60,8 @@
     </div>
     <p>
     - <b>使用提示:</b> 按住 <b>空白鍵</b> 可拖曳平移圖片。使用 <b>滑鼠滾輪</b> 或 <b>+/- 按鈕</b> 可縮放畫面。<br>
-    - <b>更新日誌 (v6.1):</b> 新增圖片縮放與平移功能。<br>
-    - <b>先前更新：</b> 復原/取消復原、選單預覽、螢光筆、數字排序等功能。
+    - <b>更新日誌 (v6.2):</b> 優化文字輸入功能，支援換行、確認/取消。<br>
+    - <b>先前更新：</b> 縮放平移、復原/取消復原、選單預覽、螢光筆、數字排序等功能。
     </p>
 </div>
 <!-- END: Add this wrapper div -->
