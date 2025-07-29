@@ -1,29 +1,26 @@
 /* --- Global Styles --- */
-/* --- KEY FIX: Change height to min-height --- */
-/* This allows the body to grow taller than the viewport, enabling scrolling */
 html, body {
     min-height: 100%;
 }
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-    background-color: #f0f2f5; /* A slightly softer gray background */
+    background-color: #f0f2f5;
     color: #333;
     margin: 0;
-    padding: 2rem; /* Add padding around the main container */
+    padding: 2rem;
     display: flex;
     justify-content: center;
-    align-items: center; /* Center the app container vertically */
-    box-sizing: border-box; /* Important for height calculation */
+    align-items: center;
+    box-sizing: border-box;
 }
 
 #app-container {
     width: 100%;
-    max-width: 1200px; /* Set a max width for large screens */
+    max-width: 1200px;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem; /* Space between elements */
-    /* Removed height properties to allow natural sizing and vertical centering */
+    gap: 1.5rem;
 }
 
 h2 {
@@ -34,7 +31,7 @@ h2 {
 
 /* --- Toolbar Styles --- */
 .toolbar {
-    margin-bottom: 0; /* Remove old margin */
+    margin-bottom: 0;
     display: flex;
     align-items: center;
     flex-wrap: wrap;
@@ -82,17 +79,21 @@ h2 {
     border: 1px solid #ddd;
     overflow: hidden;
     
-    /* --- KEY CHANGES for 16:9 Aspect Ratio --- */
-    width: 100%; /* Ensure container width is 100% of its parent */
-    aspect-ratio: 16 / 9; /* Force a 16:9 aspect ratio */
-    /* flex-grow and min-height are no longer needed */
+    /* --- KEY CHANGES for Dynamic Height --- */
+    width: 100%;
+    height: auto; /* 高度將由 JS 動態設定 */
+    min-height: 200px; /* 在沒有圖片時的最小高度 */
+    transition: height 0.3s ease-in-out; /* 新增一個平滑的高度過渡效果 */
+}
+
+#canvas-container.empty {
+    aspect-ratio: 16 / 9;
+    height: auto; /* 當 aspect-ratio 生效時，height 設為 auto */
 }
 
 #canvas {
     cursor: crosshair;
-    background-color: transparent; /* Canvas itself is transparent */
-
-    /* Make the canvas element fill its container */
+    background-color: transparent;
     width: 100%;
     height: 100%;
 }
@@ -103,9 +104,9 @@ h2 {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     color: #6c757d; cursor: pointer; text-align: center;
     border: 2px dashed #ced4da;
-    border-radius: 8px; /* Match container */
+    border-radius: 8px;
     transition: background-color 0.2s; pointer-events: none;
-    box-sizing: border-box; /* Include border in size calculation */
+    box-sizing: border-box;
 }
 #canvas-container.empty #image-placeholder { pointer-events: auto; }
 #canvas-container:not(.empty) #image-placeholder { display: none; }
@@ -115,7 +116,6 @@ h2 {
 /* --- Pop-up Inputs & Menus --- */
 #moveNumberInput { position: fixed; z-index: 1001; display: none; border: 1px solid #aaa; font-size: 16px; padding: 5px; box-shadow: 0 2px 8px #0003; width: 50px; text-align: center; border-radius: 4px; }
 
-/* START: New Text Input Widget Styles */
 #textInputContainer {
     position: fixed;
     z-index: 1001;
@@ -125,17 +125,17 @@ h2 {
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     min-width: 200px;
     max-width: 400px;
-    display: none; /* Changed from 'flex' to 'none' for initial state */
+    display: none;
     flex-direction: column;
 }
 #textInputArea {
     border: none;
     background: transparent;
     padding: 8px 10px;
-    font-size: 16px; /* This will be overridden by JS, but good to have a base */
-    resize: vertical; /* Allow user to resize height */
+    font-size: 16px;
+    resize: vertical;
     outline: none;
-    min-height: 36px; /* Minimum height for a single line */
+    min-height: 36px;
     box-sizing: border-box;
 }
 .text-input-controls {
@@ -158,7 +158,6 @@ h2 {
 }
 #textConfirmBtn:hover { background-color: #d4edda; color: #155724; }
 #textCancelBtn:hover { background-color: #f8d7da; color: #721c24; }
-/* END: New Text Input Widget Styles */
 
 #circleMenu, #textMenu, #arrowMenu {
     position: absolute; z-index: 1000; background: #fff; border: 1px solid #aaa; border-radius: 6px;

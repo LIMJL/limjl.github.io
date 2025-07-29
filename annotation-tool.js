@@ -8,6 +8,7 @@ let annotations = [];
 let dragging = null, offsetX = 0, offsetY = 0;
 let drawing = false, startX = 0, startY = 0, shiftPressed = false;
 let img = null;
+let originalImageSize = { width: 0, height: 0 }; // Store original image dimensions
 let selected = null;
 let tempShape = null;
 let color = "#ff0000";
@@ -40,12 +41,10 @@ const MIN_ZOOM = 0.1, MAX_ZOOM = 10;
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const colorPicker = document.getElementById('colorPicker');
-// START: Updated Text Input elements
 const textInputContainer = document.getElementById('textInputContainer');
 const textInputArea = document.getElementById('textInputArea');
 const textConfirmBtn = document.getElementById('textConfirmBtn');
 const textCancelBtn = document.getElementById('textCancelBtn');
-// END: Updated Text Input elements
 const moveNumberInput = document.getElementById('moveNumberInput');
 const imgInput = document.getElementById('imgInput');
 const canvasContainer = document.getElementById('canvas-container');
@@ -69,9 +68,9 @@ function initialize() {
     setupEventListeners();
     createBrush();
     setMode('number');
-    resizeCanvas(); // Set initial responsive size
+    resizeCanvas();
     updateToolbarState();
-    saveState(); // Initial state
+    saveState();
 }
 
 function setupIcons() {
@@ -106,24 +105,33 @@ function debouncedResize() {
 }
 
 function resizeCanvas() {
-    const displayWidth  = canvas.clientWidth;
-    const displayHeight = canvas.clientHeight;
-
-    if (canvas.width  !== displayWidth || canvas.height !== displayHeight) {
-        canvas.width  = displayWidth;
-        canvas.height = displayHeight;
-    }
-
     if (img) {
-       fillScreen();
+        const containerWidth = canvasContainer.clientWidth;
+        // Check for non-zero width to prevent division by zero errors on initialization
+        if (containerWidth > 0 && originalImageSize.width > 0) {
+            const targetHeight = containerWidth * (originalImageSize.height / originalImageSize.width);
+            canvasContainer.style.height = `${targetHeight}px`;
+            canvas.style.height = `${targetHeight}px`;
+
+            if (canvas.width !== containerWidth || canvas.height !== targetHeight) {
+                canvas.width = containerWidth;
+                canvas.height = targetHeight;
+            }
+            fitToScreen(); // Re-fit the image view after a resize
+        }
     } else {
-       draw();
+        const displayWidth = canvas.clientWidth;
+        const displayHeight = canvas.clientHeight;
+        if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+            canvas.width = displayWidth;
+            canvas.height = displayHeight;
+        }
+        draw();
     }
 }
 
 function setupEventListeners() {
     window.addEventListener('resize', debouncedResize);
-
     canvasContainer.addEventListener('click', () => { if (canvasContainer.classList.contains('empty') && !isAnyMenuVisible()) imgInput.click(); });
     imgInput.addEventListener('change', e => handleFile(e.target.files[0]));
     canvasContainer.addEventListener('dragover', e => e.preventDefault());
@@ -230,23 +238,10 @@ function zoomIn() { handleZoom(-2.5, canvas.width / 2, canvas.height / 2); }
 function zoomOut() { handleZoom(2.5, canvas.width / 2, canvas.height / 2); }
 
 function fitToScreen() {
-    if (!img) return;
-    const canvasAspect = canvas.width / canvas.height;
-    const imageAspect = img.width / img.height;
-    zoom = (imageAspect > canvasAspect) ? (canvas.width / img.width) : (canvas.height / img.height);
-    zoom = Math.min(zoom, 1);
-    viewX = (canvas.width - img.width * zoom) / 2;
-    viewY = (canvas.height - img.height * zoom) / 2;
-    draw();
-}
-
-function fillScreen() {
-    if (!img) return;
-    const canvasAspect = canvas.width / canvas.height;
-    const imageAspect = img.width / img.height;
-    zoom = (imageAspect > canvasAspect) ? (canvas.height / img.height) : (canvas.width / img.width);
-    viewX = (canvas.width - img.width * zoom) / 2;
-    viewY = (canvas.height - img.height * zoom) / 2;
+    if (!img || !originalImageSize.width) return;
+    zoom = Math.min(canvas.width / originalImageSize.width, canvas.height / originalImageSize.height);
+    viewX = (canvas.width - originalImageSize.width * zoom) / 2;
+    viewY = (canvas.height - originalImageSize.height * zoom) / 2;
     draw();
 }
 
@@ -274,6 +269,7 @@ function isAnyMenuVisible() {
     const popups = [circleMenu, textMenu, arrowMenu, moveNumberInput, textInputContainer];
     return popups.some(p => p.style.display === 'block' || p.style.display === 'flex');
 }
+
 function hideAllMenus() { [circleMenu, textMenu, arrowMenu, moveNumberInput, textInputContainer].forEach(m => m.style.display = 'none'); }
 
 function showCircleMenu(e) {
@@ -315,7 +311,6 @@ function showMoveNumberInput(e, ann) {
     hideAllMenus();
     const screenCoords = imageToScreenCoords(ann.x, ann.y);
     const containerRect = canvasContainer.getBoundingClientRect();
-
     const left = screenCoords.x - containerRect.left + 15;
     const top = screenCoords.y - containerRect.top + 15;
 
@@ -383,7 +378,7 @@ function onCanvasMouseDown(e) {
     else if (mode === 'text') {
         drawing = false;
         showTextInput(e, x, y);
-        e.stopPropagation(); // <-- BUG FIX: Stop event from bubbling to document listener
+        e.stopPropagation();
     }
     else if (mode === 'number') {
         drawing = false;
@@ -461,94 +456,63 @@ function onCanvasWheel(e) { if (!img) return; e.preventDefault(); const rect = c
 function onKeyDown(e) { if (e.key === ' ' && !spacebarDown && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA' && !isAnyMenuVisible()) { spacebarDown = true; updateCursor(); e.preventDefault(); } if (e.ctrlKey || e.metaKey) { if (e.key === 'z') { undo(); e.preventDefault(); } if (e.key === 'y') { redo(); e.preventDefault(); } } if ((e.key === 'Delete' || e.key === 'Backspace') && selected && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') { const idx = annotations.indexOf(selected); if (idx > -1) { const type = selected.type; annotations.splice(idx, 1); selected = null; if (type === 'number') reindexNumbers(); else draw(); saveState(); } } }
 function onKeyUp(e) { if (e.key === 'Shift') shiftPressed = false; if (e.key === ' ') { spacebarDown = false; updateCursor(); e.preventDefault(); } }
 
-// --- START: New Text Input Logic ---
-
 function confirmTextInput() {
     const text = textInputArea.value;
-    if (!text.trim()) {
-        cancelTextInput();
-        return;
-    }
-
-    const imageX = parseFloat(textInputContainer.dataset.imageX);
-    const imageY = parseFloat(textInputContainer.dataset.imageY);
-
-    const newAnnotation = {
-        type: 'text',
-        x: imageX,
-        y: imageY,
-        text: text,
-        color: colorPicker.value,
-        font: fontFamily,
-        size: fontSize
-    };
+    if (!text.trim()) { cancelTextInput(); return; }
+    const { x: imageX, y: imageY } = JSON.parse(textInputContainer.dataset.coords);
+    const newAnnotation = { type: 'text', x: imageX, y: imageY, text: text, color: colorPicker.value, font: fontFamily, size: fontSize };
     if (textBgEnabled) newAnnotation.bgColor = textBgColor;
-    
     annotations.push(newAnnotation);
     cancelTextInput();
     draw();
     saveState();
 }
 
-function cancelTextInput() {
-    textInputContainer.style.display = "none";
-}
+function cancelTextInput() { textInputContainer.style.display = "none"; }
 
 function showTextInput(event, imageX, imageY) {
     hideAllMenus();
     textInputContainer.style.display = "flex";
     textInputArea.value = "";
-    
     textInputContainer.style.left = `${event.clientX}px`;
     textInputContainer.style.top = `${event.clientY}px`;
-    
-    textInputContainer.dataset.imageX = imageX;
-    textInputContainer.dataset.imageY = imageY;
-    
+    textInputContainer.dataset.coords = JSON.stringify({ x: imageX, y: imageY });
     textInputArea.style.fontFamily = fontFamily;
     textInputArea.style.fontSize = `${fontSize * zoom}px`;
     textInputArea.style.color = colorPicker.value;
-
     textInputArea.style.height = 'auto';
     textInputArea.style.height = (textInputArea.scrollHeight) + 'px';
-
     textInputArea.focus();
-
     textConfirmBtn.onclick = confirmTextInput;
     textCancelBtn.onclick = cancelTextInput;
-
-    textInputArea.oninput = function() {
-        this.style.height = 'auto';
-        this.style.height = (this.scrollHeight) + 'px';
-    };
-
-    textInputArea.onkeydown = function(ev) {
-        if (ev.key === "Enter" && ev.shiftKey) {
-            ev.preventDefault();
-            confirmTextInput();
-        } else if (ev.key === "Escape") {
-            cancelTextInput();
-        }
-    };
+    textInputArea.oninput = function() { this.style.height = 'auto'; this.style.height = (this.scrollHeight) + 'px'; };
+    textInputArea.onkeydown = function(ev) { if (ev.key === "Enter" && ev.shiftKey) { ev.preventDefault(); confirmTextInput(); } else if (ev.key === "Escape") { cancelTextInput(); } };
 }
-// --- END: New Text Input Logic ---
 
 function draw() {
     requestIdleCallback(() => {
         ctx.save();
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.restore();
-        ctx.save();
+        
         ctx.translate(viewX, viewY);
         ctx.scale(zoom, zoom);
-        if (img) ctx.drawImage(img, 0, 0);
+        
+        if (img) {
+            ctx.drawImage(img, 0, 0, originalImageSize.width, originalImageSize.height);
+        }
+        
         annotations.filter(a => a.type === 'highlighter').forEach(ann => drawAnnotation(ann));
         annotations.filter(a => a.type !== 'highlighter').forEach(ann => drawAnnotation(ann));
+        
         if (highlighterPath.length > 1) {
             ctx.save();
-            ctx.globalAlpha = 0.4; ctx.strokeStyle = colorPicker.value; ctx.lineWidth = 20;
-            ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath();
+            ctx.globalAlpha = 0.4;
+            ctx.strokeStyle = colorPicker.value;
+            ctx.lineWidth = 20; // This width is in image coordinates, will be scaled by view
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
             highlighterPath.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
             ctx.stroke();
             ctx.restore();
@@ -581,16 +545,10 @@ function drawAnnotation(ann) {
             renderCtx.textBaseline = 'top';
             const lines = ann.text.split('\n');
             const lineHeight = ann.size * 1.2;
-
             if (ann.bgColor) {
                 const padding = 4;
                 let maxWidth = 0;
-                lines.forEach(line => {
-                    const metrics = renderCtx.measureText(line);
-                    if (metrics.width > maxWidth) {
-                        maxWidth = metrics.width;
-                    }
-                });
+                lines.forEach(line => { const metrics = renderCtx.measureText(line); if (metrics.width > maxWidth) { maxWidth = metrics.width; } });
                 const rectW = maxWidth + padding * 2;
                 const rectH = (lines.length * lineHeight) - (ann.size * 0.2) + padding;
                 const rectX = ann.x - padding;
@@ -598,45 +556,162 @@ function drawAnnotation(ann) {
                 renderCtx.fillStyle = ann.bgColor;
                 renderCtx.fillRect(rectX, rectY, rectW, rectH);
             }
-
             renderCtx.fillStyle = ann.color || "#ff0000";
-            lines.forEach((line, index) => {
-                renderCtx.fillText(line, ann.x, ann.y + (index * lineHeight));
-            });
+            lines.forEach((line, index) => { renderCtx.fillText(line, ann.x, ann.y + (index * lineHeight)); });
         }
     }
     renderCtx.restore();
 }
 
-function hitTest(ann, x, y) { const tolerance = 10 / zoom; if (ann.type === 'highlighter') { for (let i = 0; i < ann.path.length - 1; i++) { if (distToSegment({x,y}, ann.path[i], ann.path[i+1]) < ann.lineWidth / 2) return true; } return false; } if (ann.type === 'arrow') return ann.x2 && ann.y2 ? distToSegment({ x, y }, { x: ann.x, y: ann.y }, { x: ann.x2, y: ann.y2 }) < tolerance : false; if (ann.type === 'number') return Math.hypot(ann.x - x, ann.y - y) < (ann.size || 18) + tolerance / 2; if (ann.type === 'ellipse') return ((x - ann.x) ** 2) / ((ann.rx || 1) ** 2) + ((y - ann.y) ** 2) / ((ann.ry || 1) ** 2) <= 1.2; if (ann.type === 'rect') { const x1 = Math.min(ann.x, ann.x + ann.w), x2 = Math.max(ann.x, ann.x + ann.w); const y1 = Math.min(ann.y, ann.y + ann.h), y2 = Math.max(ann.y, ann.y + ann.h); return x > x1 - tolerance/2 && x < x2 + tolerance/2 && y > y1 - tolerance/2 && y < y2 + tolerance/2; } if (ann.type === 'text') {
-        ctx.save();
-        ctx.font = `${ann.size}px ${ann.font}`;
-        const lines = ann.text.split('\n');
-        const lineHeight = ann.size * 1.2;
-        const padding = ann.bgColor ? 4 : 0;
-        let maxWidth = 0;
-        lines.forEach(line => {
-            const metrics = ctx.measureText(line);
-            if (metrics.width > maxWidth) maxWidth = metrics.width;
-        });
-        const w = maxWidth + padding * 2;
-        const h = (lines.length * lineHeight) - (ann.size * 0.2) + padding;
-        const x1 = ann.x - padding;
-        const y1 = ann.y - padding / 2;
-        ctx.restore();
-        return (x > x1 && x < x1 + w && y > y1 && y < y1 + h);
-    }
-    return false;
-}
+function hitTest(ann, x, y) { const tolerance = 10 / zoom; if (ann.type === 'highlighter') { for (let i = 0; i < ann.path.length - 1; i++) { if (distToSegment({x,y}, ann.path[i], ann.path[i+1]) < ann.lineWidth / 2) return true; } return false; } if (ann.type === 'arrow') return ann.x2 && ann.y2 ? distToSegment({ x, y }, { x: ann.x, y: ann.y }, { x: ann.x2, y: ann.y2 }) < tolerance : false; if (ann.type === 'number') return Math.hypot(ann.x - x, ann.y - y) < (ann.size || 18) + tolerance / 2; if (ann.type === 'ellipse') return ((x - ann.x) ** 2) / ((ann.rx || 1) ** 2) + ((y - ann.y) ** 2) / ((ann.ry || 1) ** 2) <= 1.2; if (ann.type === 'rect') { const x1 = Math.min(ann.x, ann.x + ann.w), x2 = Math.max(ann.x, ann.x + ann.w); const y1 = Math.min(ann.y, ann.y + ann.h), y2 = Math.max(ann.y, ann.y + ann.h); return x > x1 - tolerance/2 && x < x2 + tolerance/2 && y > y1 - tolerance/2 && y < y2 + tolerance/2; } if (ann.type === 'text') { ctx.save(); ctx.font = `${ann.size}px ${ann.font}`; const lines = ann.text.split('\n'); const lineHeight = ann.size * 1.2; const padding = ann.bgColor ? 4 : 0; let maxWidth = 0; lines.forEach(line => { const metrics = ctx.measureText(line); if (metrics.width > maxWidth) maxWidth = metrics.width; }); const w = maxWidth + padding * 2; const h = (lines.length * lineHeight) - (ann.size * 0.2) + padding; const x1 = ann.x - padding; const y1 = ann.y - padding / 2; ctx.restore(); return (x > x1 && x < x1 + w && y > y1 && y < y1 + h); } return false; }
 function createBrush() { const brushCanvas = document.createElement('canvas'); const brushCtx = brushCanvas.getContext('2d'); const size = 50; brushCanvas.width = size; brushCanvas.height = size; const gradient = brushCtx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2); gradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)'); gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.2)'); gradient.addColorStop(1, 'rgba(255, 255, 255, 0)'); brushCtx.fillStyle = gradient; brushCtx.fillRect(0, 0, size, size); const imageData = brushCtx.getImageData(0, 0, size, size); const pixels = imageData.data; for (let i = 0; i < pixels.length; i += 4) { if (pixels[i + 3] > 0) { const noise = (Math.random() - 0.5) * 80; pixels[i + 3] = Math.max(0, pixels[i + 3] - noise * (1 - pixels[i + 3] / 255)); } } brushCtx.putImageData(imageData, 0, 0); brushImage = new Image(); brushImage.onload = () => { isBrushReady = true; }; brushImage.src = brushCanvas.toDataURL(); }
 function handleFile(file) { if (!file) return; const reader = new FileReader(); if (file.type === 'application/json') { reader.onload = e => loadProject(JSON.parse(e.target.result)); reader.readAsText(file); } else if (file.type.startsWith('image/')) { reader.onload = e => loadImage(e.target.result); reader.readAsDataURL(file); } else { alert('不支援的檔案格式。請選擇圖片檔或 .json 專案檔。'); } }
-function loadImage(src, callback) { img = new window.Image(); img.onload = () => { canvasContainer.classList.remove('empty'); if (!callback) { annotations = []; fillScreen(); saveState(); } else { fillScreen(); } updateClearButton(); updateToolbarState(); if (callback) callback(); }; img.src = src; }
-function saveProject() { const fileName = prompt("請輸入專案檔名：", "my-annotation-project"); if (!fileName) return; if (!img) { alert("請先載入一張圖片才能儲存專案。"); return; } const projectData = { imageData: img.src, annotations: annotations }; const jsonString = JSON.stringify(projectData, null, 2); const blob = new Blob([jsonString], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${fileName}.json`; a.click(); URL.revokeObjectURL(url); }
-function loadProject(projectData) { if (!projectData.imageData || !projectData.annotations) { alert('無效的專案檔。'); return; } loadImage(projectData.imageData, () => { annotations = projectData.annotations; if (annotations.length > 0) { const firstAnn = annotations.find(a=>a.type !== 'highlighter'); if(firstAnn) { color = firstAnn.color || '#ff0000'; colorPicker.value = color; }} reindexNumbers(); saveState(); }); }
-function downloadImage() { const fileName = prompt("請輸入圖片檔名：", "annotated-image"); if (!fileName || !img) return; selected = null; hideAllMenus(); const tempCanvas = document.createElement('canvas'); tempCanvas.width = img.width; tempCanvas.height = img.height; const tempCtx = tempCanvas.getContext('2d'); tempCtx.drawImage(img, 0, 0); annotations.forEach(ann => { drawAnnotation.call({ ctx: tempCtx, zoom: 1, selected: null }, ann); }); requestIdleCallback(() => { tempCanvas.toBlob(blob => { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${fileName}.png`; a.click(); URL.revokeObjectURL(url); }); draw(); }); }
-function copyImage() { if (!navigator.clipboard || !navigator.clipboard.write || !img) { alert('您的瀏覽器不支援此功能或沒有圖片可複製。'); return; } selected = null; hideAllMenus(); const tempCanvas = document.createElement('canvas'); tempCanvas.width = img.width; tempCanvas.height = img.height; const tempCtx = tempCanvas.getContext('2d'); tempCtx.drawImage(img, 0, 0); annotations.forEach(ann => { drawAnnotation.call({ ctx: tempCtx, zoom: 1, selected: null }, ann); }); requestIdleCallback(() => { tempCanvas.toBlob(blob => { navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(() => alert('影像已複製到剪貼簿！')).catch(err => { console.error('Copy failed:', err); alert('複製失敗。請檢查瀏覽器權限。'); }); }, 'image/png'); draw(); }); }
+
+function loadImage(src, callback) {
+    img = new window.Image();
+    img.onload = () => {
+        originalImageSize = { width: img.width, height: img.height };
+        canvasContainer.classList.remove('empty');
+        
+        if (!callback) {
+            annotations = [];
+        }
+        
+        resizeCanvas();
+        
+        if (!callback) {
+            saveState();
+        }
+
+        updateClearButton();
+        updateToolbarState();
+        if (callback) callback();
+    };
+    img.src = src;
+}
+
+function saveProject() { 
+    if (!img) { alert("請先載入一張圖片才能儲存專案。"); return; }
+    
+    const projectAnnotations = annotations.map(ann => {
+        const newAnn = { ...ann };
+        if (originalImageSize.width === 0 || originalImageSize.height === 0) return newAnn;
+        
+        const scaleX = 1 / originalImageSize.width;
+        const scaleY = 1 / originalImageSize.height;
+
+        if (newAnn.x) newAnn.x *= scaleX;
+        if (newAnn.y) newAnn.y *= scaleY;
+        if (newAnn.x2) newAnn.x2 *= scaleX;
+        if (newAnn.y2) newAnn.y2 *= scaleY;
+        if (newAnn.w) newAnn.w *= scaleX;
+        if (newAnn.h) newAnn.h *= scaleY;
+        if (newAnn.rx) newAnn.rx *= scaleX;
+        if (newAnn.ry) newAnn.ry *= scaleY;
+        if (newAnn.path) newAnn.path = newAnn.path.map(p => ({ x: p.x * scaleX, y: p.y * scaleY }));
+        
+        return newAnn;
+    });
+
+    const fileName = prompt("請輸入專案檔名：", "my-annotation-project"); 
+    if (!fileName) return; 
+    const projectData = { imageData: img.src, annotations: projectAnnotations }; 
+    const jsonString = JSON.stringify(projectData, null, 2); 
+    const blob = new Blob([jsonString], { type: 'application/json' }); 
+    const url = URL.createObjectURL(blob); 
+    const a = document.createElement('a'); a.href = url; a.download = `${fileName}.json`; a.click(); URL.revokeObjectURL(url); 
+}
+
+function loadProject(projectData) { 
+    if (!projectData.imageData || !projectData.annotations) { alert('無效的專案檔。'); return; } 
+    loadImage(projectData.imageData, () => { 
+        annotations = projectData.annotations.map(ann => {
+            const newAnn = { ...ann };
+            const scaleX = originalImageSize.width;
+            const scaleY = originalImageSize.height;
+
+            if (newAnn.x) newAnn.x *= scaleX;
+            if (newAnn.y) newAnn.y *= scaleY;
+            if (newAnn.x2) newAnn.x2 *= scaleX;
+            if (newAnn.y2) newAnn.y2 *= scaleY;
+            if (newAnn.w) newAnn.w *= scaleX;
+            if (newAnn.h) newAnn.h *= scaleY;
+            if (newAnn.rx) newAnn.rx *= scaleX;
+            if (newAnn.ry) newAnn.ry *= scaleY;
+            if (newAnn.path) newAnn.path = newAnn.path.map(p => ({ x: p.x * scaleX, y: p.y * scaleY }));
+
+            return newAnn;
+        });
+
+        if (annotations.length > 0) { 
+            const firstAnn = annotations.find(a=>a.type !== 'highlighter'); 
+            if(firstAnn) { color = firstAnn.color || '#ff0000'; colorPicker.value = color; }
+        } 
+        reindexNumbers(); 
+        saveState(); 
+        fitToScreen();
+    }); 
+}
+
+function downloadImage() { 
+    const fileName = prompt("請輸入圖片檔名：", "annotated-image"); 
+    if (!fileName || !img) return; 
+    selected = null; 
+    hideAllMenus(); 
+    const tempCanvas = document.createElement('canvas'); 
+    tempCanvas.width = originalImageSize.width; 
+    tempCanvas.height = originalImageSize.height; 
+    const tempCtx = tempCanvas.getContext('2d'); 
+    tempCtx.drawImage(img, 0, 0); 
+    annotations.forEach(ann => { drawAnnotation.call({ ctx: tempCtx, zoom: 1, selected: null }, ann); }); 
+    requestIdleCallback(() => { 
+        tempCanvas.toBlob(blob => { 
+            const url = URL.createObjectURL(blob); 
+            const a = document.createElement('a'); a.href = url; a.download = `${fileName}.png`; a.click(); URL.revokeObjectURL(url); 
+        }); 
+        draw(); 
+    }); 
+}
+function copyImage() { 
+    if (!navigator.clipboard || !navigator.clipboard.write || !img) { alert('您的瀏覽器不支援此功能或沒有圖片可複製。'); return; } 
+    selected = null; 
+    hideAllMenus(); 
+    const tempCanvas = document.createElement('canvas'); 
+    tempCanvas.width = originalImageSize.width; 
+    tempCanvas.height = originalImageSize.height; 
+    const tempCtx = tempCanvas.getContext('2d'); 
+    tempCtx.drawImage(img, 0, 0); 
+    annotations.forEach(ann => { drawAnnotation.call({ ctx: tempCtx, zoom: 1, selected: null }, ann); }); 
+    requestIdleCallback(() => { 
+        tempCanvas.toBlob(blob => { 
+            navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(() => alert('影像已複製到剪貼簿！')).catch(err => { console.error('Copy failed:', err); alert('複製失敗。請檢查瀏覽器權限。'); }); 
+        }, 'image/png'); 
+        draw(); 
+    }); 
+}
+
 function updateClearButton() { if (img) { clearBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`; clearBtn.title = "清除畫布與標註"; } else { clearBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`; clearBtn.title = "載入新圖片"; } }
-function handleClearOrNew() { if (img) { if (confirm("您確定要清除目前的圖片和所有標註嗎？此操作無法復原。")) { img = null; annotations = []; zoom = 1.0; viewX = 0; viewY = 0; canvasContainer.classList.add('empty'); saveState(); draw(); } } else { imgInput.click(); } }
+
+function handleClearOrNew() {
+    if (img) {
+        if (confirm("您確定要清除目前的圖片和所有標註嗎？此操作無法復原。")) {
+            img = null;
+            annotations = [];
+            originalImageSize = { width: 0, height: 0 };
+            
+            canvasContainer.classList.add('empty');
+            canvasContainer.style.height = ''; 
+            canvas.style.height = '';
+
+            saveState();
+            resizeCanvas();
+            updateToolbarState();
+        }
+    } else {
+        imgInput.click();
+    }
+}
+
 function drawArrow(ann, isTemp, isSelected) { const { style = "classic", color: c = "#ff0000", x: x1, y: y1, x2, y2 } = ann; if(!x1 || !y1 || !x2 || !y2) return; const currentCtx = this.ctx; const currentZoom = this.zoom; const lw = 2.5 / currentZoom; currentCtx.save(); currentCtx.lineCap = "round"; if (style === 'hatched' || style === 'blocky') { const points = getBlockArrowPolygon(x1, y1, x2, y2); if (points.length > 0) { currentCtx.lineWidth = lw; currentCtx.strokeStyle = c; if (style === 'hatched') { currentCtx.save(); drawWobblyPath(currentCtx, points, 5); currentCtx.clip(); const hatchWidth = 8; currentCtx.lineWidth = 1.5/currentZoom; const bounds = points.reduce((acc, p) => ({minX: Math.min(acc.minX, p.x), maxX: Math.max(acc.maxX, p.x), minY: Math.min(acc.minY, p.y), maxY: Math.max(acc.maxY, p.y)}), {minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity}); const diag = Math.hypot(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY); for(let i = -diag; i < diag; i += hatchWidth) { currentCtx.beginPath(); currentCtx.moveTo(bounds.minX + i, bounds.minY); currentCtx.lineTo(bounds.minX + i + diag, bounds.minY + diag); currentCtx.stroke(); } currentCtx.restore(); } drawWobblyPath(currentCtx, points, 5); currentCtx.stroke(); } } else if (style === "classic") { currentCtx.strokeStyle = c; currentCtx.lineWidth = 5/currentZoom; const dx = x2 - x1; const dy = y2 - y1; const dist = Math.hypot(dx, dy); if (dist > 5/currentZoom) { currentCtx.beginPath(); const pullback = 5/currentZoom; const x2_line = x2 - pullback * (dx / dist); const y2_line = y2 - pullback * (dy / dist); currentCtx.moveTo(x1, y1); currentCtx.lineTo(x2_line, y2_line); currentCtx.stroke(); } drawArrowHead.call(this, x1, y1, x2, y2, c); } else if (style === "curve") { currentCtx.strokeStyle = c; currentCtx.lineWidth = lw; let dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy); let cx = x1 + dx/2 - dy/4, cy = y1 + dy/2 + dx/4; let tangentAngle; if (len > 5/currentZoom) { let t = 1 - Math.min(5, len/2) / len; let endX = (1-t)**2*x1 + 2*(1-t)*t*cx + t**2*x2; let endY = (1-t)**2*y1 + 2*(1-t)*t*cy + t**2*y2; currentCtx.beginPath(); currentCtx.moveTo(x1, y1); currentCtx.quadraticCurveTo(cx, cy, endX, endY); currentCtx.stroke(); tangentAngle = Math.atan2(y2 - endY, x2 - endX); } else { tangentAngle = Math.atan2(dy, dx); } drawArrowHeadAt.call(this, x2, y2, tangentAngle, c); } else if (style === "chalk-brush") { if (!isBrushReady) { currentCtx.restore(); return; } const tempCanvas = document.createElement('canvas'); tempCanvas.width = currentCtx.canvas.width; tempCanvas.height = currentCtx.canvas.height; const tempCtx = tempCanvas.getContext('2d'); const dx = x2 - x1, dy = y2 - y1, dist = Math.hypot(dx, dy); if (dist < 1) { currentCtx.restore(); return; } const cx = x1 + dx/2 - dy * 0.25, cy = y1 + dy/2 + dx * 0.25; const curvePoints = []; for (let t = 0; t <= 1; t += 0.02) curvePoints.push({x: (1-t)**2*x1 + 2*(1-t)*t*cx + t**2*x2, y: (1-t)**2*y1 + 2*(1-t)*t*cy + t**2*y2}); for(let i=0; i<curvePoints.length-1; i++) drawBrushStroke(tempCtx, curvePoints[i], curvePoints[i+1], false); const lastP = curvePoints[curvePoints.length - 1]; const secondLastP = curvePoints[curvePoints.length - 2] || {x:x1, y:y1}; const angle = Math.atan2(lastP.y - secondLastP.y, lastP.x - secondLastP.x); const headLen = Math.min(30, dist * 0.3); const headAngle = Math.PI / 6; const p_tip = { x: x2, y: y2 }; const p_h1 = { x: x2 - headLen * Math.cos(angle - headAngle), y: y2 - headLen * Math.sin(angle - headAngle) }; const p_h2 = { x: x2 - headLen * Math.cos(angle + headAngle), y: y2 - headLen * Math.sin(angle + headAngle) }; drawBrushStroke(tempCtx, p_tip, p_h1, true); drawBrushStroke(tempCtx, p_tip, p_h2, true); tempCtx.globalCompositeOperation = 'source-in'; tempCtx.fillStyle = c; tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height); currentCtx.drawImage(tempCanvas, 0, 0); } if (isSelected) { currentCtx.shadowColor = "#339af0"; currentCtx.shadowBlur = 8/currentZoom; currentCtx.setLineDash([4/currentZoom,2/currentZoom]); currentCtx.strokeStyle = "#339af0"; currentCtx.lineWidth = lw; if(style !== 'blocky' && style !== 'hatched') { currentCtx.beginPath(); currentCtx.arc(x1, y1, 8/currentZoom, 0, 2*Math.PI); currentCtx.arc(x2, y2, 8/currentZoom, 0, 2*Math.PI); currentCtx.stroke();} else { const points = getBlockArrowPolygon(x1, y1, x2, y2); if (points.length>0) { currentCtx.beginPath(); points.forEach((p,i) => i === 0 ? currentCtx.moveTo(p.x, p.y) : currentCtx.lineTo(p.x, p.y)); currentCtx.stroke();} } } currentCtx.restore(); }
 function getBlockArrowPolygon(x1, y1, x2, y2) { const bodyWidth = 12, headWidth = 28, headLength = 25; const dx = x2 - x1, dy = y2 - y1; const len = Math.hypot(dx, dy); if (len < headLength) return []; const angle = Math.atan2(dy, dx), pAngle = angle + Math.PI / 2, bodyLen = len - headLength; const p1 = { x: x1 - Math.cos(pAngle) * bodyWidth / 2, y: y1 - Math.sin(pAngle) * bodyWidth / 2 }; const p2 = { x: p1.x + Math.cos(angle) * bodyLen, y: p1.y + Math.sin(angle) * bodyLen }; const p3 = { x: p2.x - Math.cos(pAngle) * (headWidth - bodyWidth) / 2, y: p2.y - Math.sin(pAngle) * (headWidth - bodyWidth) / 2 }; const p4 = { x: x2, y: y2 }; const p5 = { x: p3.x + Math.cos(pAngle) * headWidth, y: p3.y + Math.sin(pAngle) * headWidth }; const p6 = { x: p1.x + Math.cos(pAngle) * bodyWidth, y: p1.y + Math.sin(pAngle) * bodyWidth }; const p7 = { x: p6.x + Math.cos(angle) * bodyLen, y: p6.y + Math.sin(angle) * bodyLen }; return [p1, p2, p3, p4, p5, p7, p6, p1]; }
 function drawWobblyPath(targetCtx, points, randomness) { if (points.length < 2) return; targetCtx.beginPath(); targetCtx.moveTo(points[0].x, points[0].y); for (let i = 0; i < points.length - 1; i++) { const p1 = points[i], p2 = points[i+1]; const dx = p2.x - p1.x, dy = p2.y - p1.y, dist = Math.hypot(dx, dy); const segments = Math.max(2, Math.floor(dist / 15)), pAngle = Math.atan2(dy, dx) + Math.PI/2; for (let j = 1; j <= segments; j++) { const t = j / segments, x = p1.x + t * dx, y = p1.y + t * dy; const rand = (Math.random() - 0.5) * randomness; targetCtx.lineTo(x + Math.cos(pAngle) * rand, y + Math.sin(pAngle) * rand); } } }
@@ -644,10 +719,22 @@ function drawBrushStroke(targetCtx, p1, p2, isHead) { if (!isBrushReady) return;
 function drawArrowHead(x1, y1, x2, y2, color) { drawArrowHeadAt.call(this, x2, y2, Math.atan2(y2 - y1, x2 - x1), color); }
 function drawArrowHeadAt(x, y, angle, color) { let len = 18/this.zoom; const angleOffset = Math.PI / 6; const currentCtx = this.ctx; currentCtx.save(); currentCtx.fillStyle = color; currentCtx.beginPath(); currentCtx.moveTo(x, y); currentCtx.lineTo(x - len * Math.cos(angle - angleOffset), y - len * Math.sin(angle - angleOffset)); currentCtx.lineTo(x - len * Math.cos(angle + angleOffset), y - len * Math.sin(angle + angleOffset)); currentCtx.closePath(); currentCtx.fill(); currentCtx.restore(); }
 function distToSegment(p, v, w) { let l2 = (w.x-v.x)**2 + (w.y-v.y)**2; if (l2 === 0) return Math.hypot(p.x-v.x,p.y-v.y); let t = ((p.x-v.x)*(w.x-v.x)+(p.y-v.y)*(w.y-v.y))/l2; t = Math.max(0,Math.min(1,t)); return Math.hypot(p.x - (v.x + t*(w.x-v.x)), p.y - (v.y + t*(w.y-v.y))); }
-function saveState() { if (historyIndex < history.length - 1) { history = history.slice(0, historyIndex + 1); } history.push(JSON.parse(JSON.stringify(annotations))); historyIndex = history.length - 1; updateToolbarState(); }
-function undo() { if (historyIndex > 0) { historyIndex--; annotations = JSON.parse(JSON.stringify(history[historyIndex])); draw(); updateToolbarState(); } }
-function redo() { if (historyIndex < history.length - 1) { historyIndex++; annotations = JSON.parse(JSON.stringify(history[historyIndex])); draw(); updateToolbarState(); } }
-function updateToolbarState() { const hasImage = !!img; updateClearButton(); undoBtn.disabled = historyIndex <= 0; redoBtn.disabled = historyIndex >= history.length - 1; zoomInBtn.disabled = !hasImage; zoomOutBtn.disabled = !hasImage; zoomFitBtn.disabled = !hasImage; document.querySelector('button[onclick="saveProject()"]').disabled = !hasImage; document.querySelector('button[onclick="copyImage()"]').disabled = !hasImage; document.querySelector('button[onclick="downloadImage()"]').disabled = !hasImage; }
+function saveState() { if (historyIndex < history.length - 1) { history = history.slice(0, historyIndex + 1); } history.push(JSON.parse(JSON.stringify({annotations, zoom, viewX, viewY}))); historyIndex = history.length - 1; updateToolbarState(); }
+function undo() { if (historyIndex > 0) { historyIndex--; const state = JSON.parse(JSON.stringify(history[historyIndex])); annotations = state.annotations; zoom = state.zoom; viewX = state.viewX; viewY = state.viewY; draw(); updateToolbarState(); } }
+function redo() { if (historyIndex < history.length - 1) { historyIndex++; const state = JSON.parse(JSON.stringify(history[historyIndex])); annotations = state.annotations; zoom = state.zoom; viewX = state.viewX; viewY = state.viewY; draw(); updateToolbarState(); } }
+
+function updateToolbarState() { 
+    const hasImage = !!img; 
+    updateClearButton(); 
+    undoBtn.disabled = historyIndex <= 0; 
+    redoBtn.disabled = historyIndex >= history.length - 1; 
+    zoomInBtn.disabled = !hasImage; 
+    zoomOutBtn.disabled = !hasImage; 
+    zoomFitBtn.disabled = !hasImage; 
+    document.querySelector('button[onclick="saveProject()"]').disabled = !hasImage; 
+    document.querySelector('button[onclick="copyImage()"]').disabled = !hasImage; 
+    document.querySelector('button[onclick="downloadImage()"]').disabled = !hasImage; 
+}
 
 // Run the application
 initialize();
