@@ -10,6 +10,7 @@ body {
 }
 
 #app-container {
+    position: relative; /* ADDED: Set as positioning context for the version number */
     width: 100%;
     max-width: 1200px; /* Set a max width for large screens */
     display: flex;
@@ -64,18 +65,17 @@ h2 {
 /* --- Canvas Area (FINAL FIX) --- */
 #canvas-container {
     position: relative;
-    display: block;             /* KEY CHANGE: Use simple block display to avoid layout conflicts */
+    display: block;
     background-color: #fff;
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     border: 1px solid #ddd;
-    overflow: auto;             /* Allow scrolling */
+    overflow: auto;
     max-height: 75vh;
     height: 450px;
     cursor: crosshair;
 }
 
-/* ADDED: Hide scrollbars for a cleaner look */
 #canvas-container::-webkit-scrollbar {
     display: none;
 }
@@ -84,7 +84,6 @@ h2 {
     scrollbar-width: none;
 }
 
-/* ADDED: Panning cursor styles */
 #canvas-container.is-panning {
     cursor: grab;
 }
@@ -92,18 +91,17 @@ h2 {
     cursor: grabbing;
 }
 
-
 /* --- Canvas Element (FINAL FIX) --- */
 #canvas {
-    display: block;              /* KEY CHANGE: Ensure it's a block element */
-    margin: 0 auto;              /* KEY CHANGE: Let the canvas center itself horizontally */
+    display: block;
+    margin: 0 auto;
     background-color: transparent;
 }
 
 #image-placeholder {
-    /* This part needs flexbox to center the placeholder text */
     position: absolute;
     top: 0; left: 0; width: 100%; height: 100%;
+    box-sizing: border-box;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     color: #6c757d; cursor: pointer; text-align: center;
     border: 2px dashed #ced4da;
@@ -141,4 +139,15 @@ p {
     color: #6c757d;
     font-size: 0.9rem;
     line-height: 1.6;
+}
+
+/* --- ADDED: Version Info (Corner) --- */
+.version-corner {
+    position: absolute;
+    bottom: 1rem;       /* Adjust as needed */
+    right: 1.5rem;      /* Adjust as needed */
+    font-size: 0.8rem;
+    color: #adb5bd;      /* A light, unobtrusive color */
+    font-family: monospace;
+    pointer-events: none; /* Allows clicking through the element */
 }

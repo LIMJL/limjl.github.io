@@ -86,7 +86,6 @@ function setupMenus() {
     arrowMenu.innerHTML = `<button class="close-btn" onclick="hideAllMenus()" title="關閉">×</button><label><input type="radio" name="arrowStyle" value="classic" checked><svg width="32" height="16"><line x1="2" y1="8" x2="28" y2="8" stroke="#888" stroke-width="3"/><polygon points="28,8 22,5 22,11" fill="#888"/></svg>經典</label><label><input type="radio" name="arrowStyle" value="curve"><svg width="32" height="16"><path d="M2,14 Q16,2 28,8" fill="none" stroke="#888" stroke-width="3"/><polygon points="28,8 22,5 22,11" fill="#888"/></svg>彎曲</label><label><input type="radio" name="arrowStyle" value="chalk-brush"><svg width="32" height="16" viewBox="0 0 32 16"><path d="M2,14 C10,4 20,4 28,8" fill="none" stroke="#888" stroke-width="2.5" stroke-linecap="round"/><path d="M22,5 L28,8 L22,11" fill="none" stroke="#888" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>曲線筆刷</label><label><input type="radio" name="arrowStyle" value="hatched"><svg width="32" height="16" viewBox="0 0 32 16"><path d="M2,6 L22,6 L22,4 L30,8 L22,12 L22,10 L2,10 Z" fill="none" stroke="#888" stroke-width="1.5"/><line x1="4" y1="12" x2="10" y2="4" stroke="#888" stroke-width="1"/><line x1="8" y1="12" x2="14" y2="4" stroke="#888" stroke-width="1"/><line x1="12" y1="12" x2="18" y2="4" stroke="#888" stroke-width="1"/></svg>斜線填充</label><label><input type="radio" name="arrowStyle" value="blocky"><svg width="32" height="16" viewBox="0 0 32 16"><path d="M2,6 L22,6 L22,4 L30,8 L22,12 L22,10 L2,10 Z" fill="none" stroke="#888" stroke-width="2"/></svg>空心區塊</label>`;
 }
 
-// --- Event Listeners Setup (Robust Version) ---
 function setupEventListeners() {
     canvasContainer.addEventListener('click', () => { if (canvasContainer.classList.contains('empty') && !isAnyMenuVisible()) imgInput.click(); });
     imgInput.addEventListener('change', e => handleFile(e.target.files[0]));
@@ -154,49 +153,55 @@ function setupEventListeners() {
     arrowMenu.addEventListener('change', e => { if (e.target.name === 'arrowStyle') arrowStyle = e.target.value; });
     colorPicker.addEventListener('input', function() { if (mode !== 'highlighter') { color = this.value; if (selected) { selected.color = color; draw(); saveState(); } } });
 
-    // Only mousedown and contextmenu are now permanently on the canvas
     canvas.addEventListener('mousedown', onCanvasMouseDown);
     canvas.addEventListener('contextmenu', onCanvasContextMenu);
-
-    // Keydown/keyup listeners remain on the window
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
+    
+    window.addEventListener('keydown', onKeyDown, { capture: true }); 
+    window.addEventListener('keyup', onKeyUp, { capture: true });
 }
 
-// Helper to get correct coordinates
+// =================================================================
+// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+//                  THIS IS THE CORRECTED FUNCTION
+// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 function getCanvasCoordinates(e) {
-    const rect = canvasContainer.getBoundingClientRect();
-    const x = e.clientX - rect.left + canvasContainer.scrollLeft;
-    const y = e.clientY - rect.top + canvasContainer.scrollTop;
+    // Get the bounding rectangle of the <canvas> element itself.
+    // This automatically accounts for any margins, padding, or scrolling.
+    const rect = canvas.getBoundingClientRect();
+    
+    // Calculate the mouse coordinates relative to the canvas's top-left corner.
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
     return { x, y };
 }
-
-// --- Mouse Event Handlers (Refactored for global listeners) ---
+// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+// =================================================================
 
 function onCanvasMouseDown(e) {
     if (e.button !== 0 || isAnyMenuVisible()) return;
 
     if (isSpacePressed) {
-        e.preventDefault(); // *** THIS IS THE FIX *** Prevent browser's default drag-to-scroll
+        e.preventDefault();
+        e.stopPropagation(); 
         isPanning = true;
         lastPanX = e.clientX;
         lastPanY = e.clientY;
-        // Add global listeners for robust pan handling
+        
+        document.body.style.overflow = 'hidden';
+        
         window.addEventListener('mousemove', handleGlobalMouseMove);
         window.addEventListener('mouseup', handleGlobalMouseUp);
         return;
     }
 
-    // Add global listeners for robust drag/draw handling
     window.addEventListener('mousemove', handleGlobalMouseMove);
     window.addEventListener('mouseup', handleGlobalMouseUp);
 
     const { x, y } = getCanvasCoordinates(e);
-
     selected = null;
     hideAllMenus();
 
-    // Check for hit on existing annotations
     for (let i = annotations.length - 1; i >= 0; i--) {
         if (hitTest(annotations[i], x, y)) {
             const ann = annotations[i];
@@ -216,7 +221,6 @@ function onCanvasMouseDown(e) {
         }
     }
 
-    // Start drawing a new shape
     drawing = true;
     startX = x;
     startY = y;
@@ -227,10 +231,10 @@ function onCanvasMouseDown(e) {
     } else if (['arrow', 'ellipse', 'rect'].includes(mode)) {
         tempShape = { type: mode, x: startX, y: startY, color: colorPicker.value, style: arrowStyle };
     } else if (mode === 'text') {
-        drawing = false; // Text is handled differently
+        drawing = false;
         showTextInput(x, y);
     } else if (mode === 'number') {
-        drawing = false; // Numbers are placed on click, not drag
+        drawing = false; 
         const numberAnnotations = annotations.filter(a => a.type === 'number');
         const newAnnotation = { type: 'number', x, y, num: numberAnnotations.length + 1, color: colorPicker.value, size: numberSize };
         if (numberBgEnabled) newAnnotation.bgColor = numberBgColor;
@@ -241,10 +245,8 @@ function onCanvasMouseDown(e) {
 }
 
 function handleGlobalMouseMove(e) {
-    lastMouseX = e.clientX;
-    lastMouseY = e.clientY;
-
     if (isPanning) {
+        e.preventDefault(); 
         const dx = e.clientX - lastPanX;
         const dy = e.clientY - lastPanY;
         canvasContainer.scrollLeft -= dx;
@@ -255,38 +257,33 @@ function handleGlobalMouseMove(e) {
     }
 
     if (!drawing && !dragging) return;
-
+    
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
     const { x, y } = getCanvasCoordinates(e);
     shiftPressed = e.shiftKey;
 
     if (dragging) {
         let dx = x - offsetX - dragging.x;
         let dy = y - offsetY - dragging.y;
-        
         if(dragging.type === 'highlighter' && dragging.path) {
-            dragging.path.forEach(p => {
-                p.x += dx;
-                p.y += dy;
-            });
+            dragging.path.forEach(p => { p.x += dx; p.y += dy; });
         }
         dragging.x += dx;
         dragging.y += dy;
-        
         if (dragging.x2) dragging.x2 += dx;
         if (dragging.y2) dragging.y2 += dy;
-        
         draw();
     } else if (drawing) {
         if (mode === 'highlighter') {
             highlighterPath.push({ x, y });
             draw();
         } else {
-            draw(); // Redraw base image + annotations
+            draw();
             ctx.save();
             ctx.strokeStyle = colorPicker.value;
             ctx.lineWidth = 2.5;
             let dx = x - startX, dy = y - startY;
-
             if (mode === 'ellipse') {
                 let rx = Math.abs(dx / 2), ry = Math.abs(dy / 2);
                 let cx = startX + dx / 2, cy = startY + dy / 2;
@@ -312,12 +309,12 @@ function handleGlobalMouseMove(e) {
 }
 
 function handleGlobalMouseUp(e) {
-    // Always remove the global listeners
     window.removeEventListener('mousemove', handleGlobalMouseMove);
     window.removeEventListener('mouseup', handleGlobalMouseUp);
 
     if (isPanning) {
         isPanning = false;
+        document.body.style.overflow = '';
         return;
     }
 
@@ -330,20 +327,17 @@ function handleGlobalMouseUp(e) {
     if (!drawing) return;
     
     const { x, y } = getCanvasCoordinates(e);
-
     drawing = false;
     if (mode === 'highlighter') {
         finalizeHighlighterPath();
     } else {
         let dx = x - startX;
         let dy = y - startY;
-
         if (Math.hypot(dx, dy) < 5) {
             tempShape = null;
             draw();
             return;
         }
-
         if (mode === 'ellipse') {
             let rx = Math.abs(dx / 2), ry = Math.abs(dy / 2);
             if (shiftPressed) rx = ry = Math.max(rx, ry);
@@ -382,12 +376,14 @@ function onCanvasContextMenu(e) {
 }
 
 function onKeyDown(e) {
-    if ((e.key === ' ' || e.code === 'Space') && !isSpacePressed) {
-        if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT') return;
-        e.preventDefault();
-        isSpacePressed = true;
-        if (!isPanning) {
-            canvasContainer.classList.add('is-panning');
+    if (e.code === 'Space') {
+        if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'SELECT') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!isSpacePressed) {
+                isSpacePressed = true;
+                canvasContainer.classList.add('is-panning');
+            }
         }
     }
 
@@ -410,10 +406,19 @@ function onKeyDown(e) {
 }
 
 function onKeyUp(e) {
-    if (e.key === ' ' || e.code === 'Space') {
+    if (e.code === 'Space') {
+        if (isSpacePressed) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
         isSpacePressed = false;
-        isPanning = false; // Ensure panning stops
         canvasContainer.classList.remove('is-panning');
+        if (isPanning) {
+            isPanning = false;
+            document.body.style.overflow = ''; 
+            window.removeEventListener('mousemove', handleGlobalMouseMove);
+            window.removeEventListener('mouseup', handleGlobalMouseUp);
+        }
     }
     if (e.key === 'Shift') shiftPressed = false;
 }
@@ -488,9 +493,12 @@ function showTextMenu(e) {
 function showArrowMenu(e) { hideAllMenus(); arrowMenu.style.display = "block"; let rect = arrowBtn.getBoundingClientRect(); arrowMenu.style.left = (rect.left + window.scrollX) + "px"; arrowMenu.style.top = (rect.bottom + window.scrollY + 4) + "px"; const radio = arrowMenu.querySelector(`input[value="${arrowStyle}"]`); if(radio) radio.checked = true; }
 function showMoveNumberInput(e, ann) {
     hideAllMenus();
-    const menuRect = canvasContainer.getBoundingClientRect();
-    moveNumberInput.style.left = `${e.clientX - menuRect.left + 15}px`;
-    moveNumberInput.style.top = `${e.clientY - menuRect.top + 15}px`;
+    const menuRect = canvas.getBoundingClientRect(); // Use canvas rect for positioning relative to it
+    const clickXOnCanvas = e.clientX - menuRect.left;
+    const clickYOnCanvas = e.clientY - menuRect.top;
+
+    moveNumberInput.style.left = `${clickXOnCanvas + 15}px`;
+    moveNumberInput.style.top = `${clickYOnCanvas + 15}px`;
     moveNumberInput.style.display = 'block';
     moveNumberInput.value = ann.num;
     moveNumberInput.focus();
@@ -529,9 +537,10 @@ function finalizeHighlighterPath() { if (highlighterPath.length > 1) { annotatio
 function showTextInput(x, y) { 
     textInputBox.style.display = "block"; 
     textInputBox.value = ""; 
-    const containerRect = canvasContainer.getBoundingClientRect();
-    textInputBox.style.left = `${x - canvasContainer.scrollLeft}px`; 
-    textInputBox.style.top = `${y - canvasContainer.scrollTop}px`;
+    const rect = canvas.getBoundingClientRect();
+    // Position the input relative to the viewport, then the container will place it correctly
+    textInputBox.style.left = `${x + rect.left - canvasContainer.getBoundingClientRect().left}px`; 
+    textInputBox.style.top = `${y + rect.top - canvasContainer.getBoundingClientRect().top}px`;
     textInputBox.style.fontFamily = fontFamily; 
     textInputBox.style.fontSize = `${fontSize}px`; 
     textInputBox.style.color = colorPicker.value; 
@@ -606,13 +615,11 @@ function drawArrowHead(x1, y1, x2, y2, color) { drawArrowHeadAt(x2, y2, Math.ata
 function drawArrowHeadAt(x, y, angle, color) { let len = 18; const angleOffset = Math.PI / 6; ctx.save(); ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - len * Math.cos(angle - angleOffset), y - len * Math.sin(angle - angleOffset)); ctx.lineTo(x - len * Math.cos(angle + angleOffset), y - len * Math.sin(angle + angleOffset)); ctx.closePath(); ctx.fill(); ctx.restore(); }
 function distToSegment(p, v, w) { let l2 = (w.x-v.x)**2 + (w.y-v.y)**2; if (l2 === 0) return Math.hypot(p.x-v.x,p.y-v.y); let t = ((p.x-v.x)*(w.x-v.x)+(p.y-v.y)*(w.y-v.y))/l2; t = Math.max(0,Math.min(1,t)); return Math.hypot(p.x - (v.x + t*(w.x-v.x)), p.y - (v.y + t*(w.y-v.y))); }
 
-// --- Undo/Redo Logic ---
 function saveState() {
     if (historyIndex < history.length - 1) {
         history = history.slice(0, historyIndex + 1);
     }
     const state = JSON.stringify(annotations);
-    // Don't save if it's identical to the previous state
     if(history.length > 0 && history[historyIndex] === state) return;
     history.push(state);
     historyIndex = history.length - 1;
@@ -642,5 +649,4 @@ function updateUndoRedoButtons() {
     redoBtn.disabled = historyIndex >= history.length - 1;
 }
 
-// Run the application
 initialize();
