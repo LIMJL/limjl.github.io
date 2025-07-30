@@ -30,8 +30,6 @@ export function setupEventListeners() {
     ui.highlighterBtn.addEventListener('click', () => setMode('highlighter'));
     addLongPress(ui.textBtn, ui.showTextMenu, () => setMode('text'));
     ui.colorPicker.addEventListener('input', handleColorChange);
-
-    // --- NEW: Prevent the default browser context menu on the color picker ---
     ui.colorPicker.addEventListener('contextmenu', e => e.preventDefault());
 
     ui.zoomInBtn.addEventListener('click', zoomIn);
@@ -267,7 +265,6 @@ async function onCanvasMouseDown(e) {
             setTempShape({ type: state.mode, x, y, x2: x, y2: y, color: state.color, style: state.arrowStyle });
         } else if (state.mode === 'text') {
             setDrawing(false);
-            // Call showTextInput in create mode (last argument is null)
             ui.showTextInput(e, x, y, null);
             e.stopPropagation();
         } else if (state.mode === 'number') {
@@ -443,10 +440,20 @@ function onCanvasWheel(e) {
     handleZoom(Math.sign(e.deltaY), e.clientX - rect.left, e.clientY - rect.top);
 }
 
+// --- FIX: The onCanvasTouchStart function is updated here ---
 function onCanvasTouchStart(e) {
     e.preventDefault();
     const touch = e.touches[0];
-    const simulatedEvent = { ...touch, button: 0 };
+    // Create a simulated event that includes the 'button' property
+    // so that the onCanvasMouseDown function works correctly.
+    const simulatedEvent = {
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        target: touch.target,
+        button: 0, // This is the crucial fix
+        preventDefault: () => e.preventDefault(),
+        stopPropagation: () => e.stopPropagation(),
+    };
     if (e.touches.length === 1) {
         onCanvasMouseDown(simulatedEvent);
     } else if (e.touches.length === 2) {
@@ -480,7 +487,12 @@ function onCanvasTouchMove(e) {
 function onCanvasTouchEnd(e) {
     e.preventDefault();
     const touch = e.changedTouches[0] || lastMousePos;
-    const simulatedEvent = { ...touch, button: 0 };
+    const simulatedEvent = {
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        target: touch.target,
+        button: 0
+    };
     onCanvasMouseUp(simulatedEvent);
     setPanning(false);
     ui.updateCursor();

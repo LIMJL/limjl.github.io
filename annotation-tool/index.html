@@ -29,9 +29,11 @@
         <button id="numberBtn" class="toggle-btn">123</button>
         <button id="ellipseBtn" class="toolbar-btn" title="橢圓 (按住 Shift 畫正圓)"></button>
         <button id="rectBtn" class="toolbar-btn" title="矩形 (按住 Shift 畫正方形)"></button>
-        <button id="arrowBtn" class="arrow-btn"></button>
+        <!-- FIX: Added 'toolbar-btn' class here -->
+        <button id="arrowBtn" class="toolbar-btn arrow-btn"></button>
         <button id="highlighterBtn" class="toolbar-btn" title="螢光筆"></button>
-        <button id="textBtn" class="text-btn"></button>
+        <!-- FIX: Added 'toolbar-btn' class here -->
+        <button id="textBtn" class="toolbar-btn text-btn"></button>
         <label><input type="color" id="colorPicker" value="#ff0000" title="標註顏色"></label>
         <div class="separator"></div>
         
@@ -56,8 +58,8 @@
         
         <!-- 裁切工具列 (預設隱藏) -->
         <div id="crop-toolbar">
-            <button id="applyCropBtn" title="確認裁切">✔ 確認</button>
-            <button id="cancelCropBtn" title="取消">✖ 取消</button>
+            <button id="applyCropBtn" title="確認裁切"></button>
+            <button id="cancelCropBtn" title="取消"></button>
         </div>
         
         <!-- 文字輸入框 (預設隱藏) -->
