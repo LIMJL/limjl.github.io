@@ -1,0 +1,394 @@
+/* --- Global Styles --- */
+html, body {
+    min-height: 100%;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    background-color: #f0f2f5;
+    color: #333;
+    margin: 0;
+    padding: 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+    box-sizing: border-box;
+}
+
+#app-container {
+    width: 100%;
+    max-width: 1200px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+h2 {
+    color: #1d2129;
+    text-align: center;
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+p {
+    color: #6c757d;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    flex-shrink: 0;
+}
+
+/* --- Toolbar Styles --- */
+.toolbar {
+    margin-bottom: 0;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border: 1px solid #ddd;
+}
+
+.toolbar-btn, .toggle-btn, .text-btn, .arrow-btn {
+    padding: 5px 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background: #fdfdfd;
+    cursor: pointer;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 36px;
+    transition: all 0.2s ease;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.toolbar-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background-color: #f8f9fa;
+}
+
+.toolbar-btn:hover:not(:disabled),
+.toggle-btn:hover,
+.text-btn:hover,
+.arrow-btn:hover {
+    background-color: #f1f3f5;
+    border-color: #b5b5b5;
+}
+
+.toolbar-btn.active,
+.toggle-btn.active,
+.text-btn.active,
+.arrow-btn.active {
+    background: #e7f3ff;
+    border-color: #007bff;
+    color: #0056b3;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+}
+
+.toolbar-btn svg {
+    width: 22px;
+    height: 22px;
+    stroke: #343a40;
+}
+
+.toolbar-btn.active svg {
+    stroke: #0056b3;
+}
+
+.separator {
+    border-left: 1px solid #ccc;
+    height: 25px;
+    margin: 0 5px;
+}
+
+input[type="color"] {
+    -webkit-appearance: none;
+    width: 36px;
+    height: 36px;
+    border: none;
+    cursor: pointer;
+    background-color: transparent;
+    padding: 0;
+}
+
+input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+input[type="color"]::-webkit-color-swatch {
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+input[type="color"]:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+
+/* --- Canvas Area --- */
+#canvas-container {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border: 1px solid #ddd;
+    overflow: hidden;
+    width: 100%;
+    height: auto;
+    min-height: 200px;
+    transition: height 0.3s ease-in-out;
+}
+
+#canvas-container.empty {
+    aspect-ratio: 16 / 9;
+    height: auto; /* Let aspect-ratio define height */
+}
+
+#canvas {
+    cursor: crosshair;
+    background-color: transparent;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+}
+
+#image-placeholder {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+    cursor: pointer;
+    text-align: center;
+    border: 2px dashed #ced4da;
+    border-radius: 8px;
+    transition: background-color 0.2s;
+    pointer-events: none;
+    box-sizing: border-box;
+}
+
+#canvas-container.empty #image-placeholder {
+    pointer-events: auto;
+}
+
+#canvas-container:not(.empty) #image-placeholder {
+    display: none;
+}
+
+#canvas-container.empty:hover #image-placeholder {
+    background-color: #f8f9fa;
+}
+
+#image-placeholder svg {
+    width: 60px;
+    height: 60px;
+    margin-bottom: 15px;
+    stroke: #adb5bd;
+}
+
+/* --- Pop-up Inputs & Menus --- */
+#moveNumberInput {
+    position: fixed;
+    z-index: 1001;
+    display: none;
+    border: 1px solid #aaa;
+    font-size: 16px;
+    padding: 5px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    width: 50px;
+    text-align: center;
+    border-radius: 4px;
+}
+
+#textInputContainer {
+    position: fixed;
+    z-index: 1001;
+    background: #fff;
+    border: 1px solid #aaa;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    min-width: 200px;
+    max-width: 400px;
+    display: none;
+    flex-direction: column;
+}
+
+#textInputArea {
+    border: none;
+    background: transparent;
+    padding: 8px 10px;
+    font-size: 16px;
+    resize: vertical;
+    outline: none;
+    min-height: 36px;
+    box-sizing: border-box;
+}
+
+.text-input-controls {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 4px 8px;
+    background-color: #f7f7f7;
+    border-top: 1px solid #eee;
+}
+
+#textConfirmBtn, #textCancelBtn {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    line-height: 1;
+    transition: background-color 0.2s;
+}
+
+#textConfirmBtn:hover {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+#textCancelBtn:hover {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+#circleMenu, #textMenu, #arrowMenu {
+    position: fixed;
+    z-index: 1000;
+    background: #fff;
+    border: 1px solid #aaa;
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    padding: 10px 16px 10px 10px;
+    display: none;
+    min-width: 260px;
+}
+
+#circleMenu label, #textMenu label, #arrowMenu label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    font-size: 15px;
+    cursor: pointer;
+}
+
+#circleMenu input, #textMenu input, #textMenu select, #arrowMenu input {
+    vertical-align: middle;
+    margin-left: 8px;
+}
+
+.close-btn {
+    position: absolute;
+    right: 10px;
+    top: 4px;
+    background: none;
+    border: none;
+    font-size: 18px;
+    color: #888;
+    cursor: pointer;
+}
+
+.close-btn:hover {
+    color: #d00;
+}
+
+#arrowMenu label svg {
+    margin: 0 6px 0 0;
+}
+
+.preview-area {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-grow: 1;
+}
+
+#number-size-preview {
+    border-radius: 50%;
+    border: 1px solid #ccc;
+    background-color: #f0f0f0;
+    margin-left: 10px;
+    transition: all 0.1s ease;
+}
+
+#font-size-preview {
+    font-weight: bold;
+    color: #555;
+    margin-left: 10px;
+    transition: all 0.1s ease;
+}
+
+input[type="range"] {
+    flex-grow: 1;
+    margin: 0 8px;
+}
+
+.size-value {
+    min-width: 20px;
+    text-align: right;
+    font-family: monospace;
+}
+
+
+/* --- Crop UI Styles (MODIFIED) --- */
+#crop-toolbar {
+    position: absolute;
+    background-color: rgba(40, 40, 40, 0.85);
+    border-radius: 8px;
+    padding: 8px 12px;
+    display: none; /* Initially hidden */
+    gap: 10px;
+    z-index: 1002;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    /* This transform centers the toolbar on its 'left' and 'top' coordinates */
+    transform: translate(-50%, -50%);
+    /* Prevents buttons from wrapping on two lines */
+    white-space: nowrap; 
+}
+
+#crop-toolbar.visible {
+    display: flex;
+}
+
+#crop-toolbar button {
+    background-color: #4a4a4a;
+    color: #fff;
+    border: 1px solid #666;
+    border-radius: 5px;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+#crop-toolbar button:hover {
+    background-color: #5a5a5a;
+}
+
+#applyCropBtn {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+#applyCropBtn:hover {
+    background-color: #218838;
+}
