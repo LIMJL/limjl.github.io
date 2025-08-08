@@ -392,3 +392,116 @@ input[type="range"] {
 #applyCropBtn:hover {
     background-color: #218838;
 }
+
+/* START: 新增的聯絡我們按鈕和彈出式對話框樣式 */
+.contact-btn {
+    /* 讓按鈕在底部獨立顯示 */
+    display: block;
+    margin: 1rem auto 0; /* 置中並與上方內容保持距離 */
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+    padding: 8px 20px;
+    font-size: 1.1rem;
+    min-width: unset; /* 移除 toolbar-btn 的 min-width 限制 */
+    height: auto; /* 移除 toolbar-btn 的 height 限制 */
+}
+
+.contact-btn:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+    color: white;
+}
+
+.contact-btn svg { /* 讓 SVG 圖示顏色為白色 */
+    stroke: white;
+    margin-right: 8px; /* 圖示與文字間距 */
+}
+
+/* 彈出式對話框 (Modal Overlay) */
+.modal-overlay {
+    display: none; /* 預設隱藏 */
+    position: fixed; /* 固定在視窗上 */
+    z-index: 10000; /* 確保在所有內容之上 */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6); /* 半透明黑色背景 */
+    display: flex; /* 使用 flexbox 居中內容 */
+    justify-content: center;
+    align-items: center;
+    overflow: auto; /* 如果內容超出視窗，允許捲動 */
+}
+
+/* 彈出式對話框內容區 */
+.modal-content {
+    background-color: #fefefe;
+    margin: auto; /* flexbox 居中 */
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+    position: relative; /* 為了關閉按鈕定位 */
+    max-width: 600px; /* 對話框最大寬度 */
+    width: 90%; /* 響應式寬度 */
+    max-height: 90vh; /* 最大高度，防止在小螢幕上溢出 */
+    display: flex; /* 內部 flexbox 排版 */
+    flex-direction: column;
+}
+
+.modal-content h3 {
+    margin-top: 0;
+    color: #1d2129;
+    text-align: center;
+    font-size: 1.4rem;
+    margin-bottom: 15px;
+}
+
+.modal-content p {
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 1rem;
+}
+
+/* 關閉按鈕 */
+.modal-close-btn {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    color: #aaa;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.modal-close-btn:hover,
+.modal-close-btn:focus {
+    color: #333;
+    text-decoration: none;
+}
+
+/* Google 表單 iframe 容器 */
+.modal-content .form-wrapper {
+    flex-grow: 1; /* 讓 iframe 容器填滿可用空間 */
+    min-height: 400px; /* 為 iframe 設定最小高度 */
+    width: 100%;
+    position: relative;
+    /* height: 0; /* 移除 height:0 和 padding-bottom，讓 flex-grow 和 min-height 控制高度 */
+    overflow: hidden;
+    margin-top: 15px;
+}
+
+.modal-content .form-wrapper iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+/* END: 新增的聯絡我們按鈕和彈出式對話框樣式 */

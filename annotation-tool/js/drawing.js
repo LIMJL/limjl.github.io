@@ -2,9 +2,10 @@
 import { canvas, ctx, canvasContainer, colorPicker } from './ui.js';
 import { fitToScreen } from './events.js';
 import * as state from './state.js';
-// --- MODIFICATION 1 of 2: Import the new function ---
 import { drawCropOverlay, updateCropToolbarPosition } from './crop.js';
+// --- NEW: Import handle utility functions ---
 import { isBrushReady, getBrushImage, drawBrushStroke } from './file.js';
+import { getRectHandles, getEllipseHandles } from './utils.js';
 
 window.requestIdleCallback = window.requestIdleCallback || function(cb) { return setTimeout(() => { const start = Date.now(); cb({ didTimeout: false, timeRemaining: () => Math.max(0, 50 - (Date.now() - start)) }); }, 1); };
 window.cancelIdleCallback = window.cancelIdleCallback || function(id) { clearTimeout(id); };
@@ -56,12 +57,27 @@ export function draw() {
         }
         if (state.mode === 'crop') {
             drawCropOverlay(ctx, state.zoom);
-            // --- MODIFICATION 2 of 2: Add this function call ---
             updateCropToolbarPosition();
         }
         ctx.restore();
     });
 }
+
+// --- NEW HELPER: Function to draw resize handles ---
+function drawHandles(renderCtx, handles, renderZoom) {
+    const handleSize = 8 / renderZoom;
+    renderCtx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    renderCtx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
+    renderCtx.lineWidth = 1 / renderZoom;
+    for (const handleName in handles) {
+        const pos = handles[handleName];
+        renderCtx.beginPath();
+        renderCtx.rect(pos.x - handleSize / 2, pos.y - handleSize / 2, handleSize, handleSize);
+        renderCtx.fill();
+        renderCtx.stroke();
+    }
+}
+
 
 export function drawAnnotation(ann) {
     const isSelected = state.selected === ann;
@@ -115,15 +131,21 @@ export function drawAnnotation(ann) {
             renderCtx.beginPath();
             renderCtx.ellipse(ann.x, ann.y, ann.rx, ann.ry, 0, 0, 2 * Math.PI);
             renderCtx.stroke();
+            // --- MODIFIED: Draw handles if selected ---
+            if (isSelected) {
+                const handles = getEllipseHandles(ann);
+                drawHandles(renderCtx, handles, renderZoom);
+            }
         } else if (ann.type === 'rect') {
             renderCtx.strokeRect(ann.x, ann.y, ann.w, ann.h);
+            // --- MODIFIED: Draw handles if selected ---
+            if (isSelected) {
+                const handles = getRectHandles(ann);
+                drawHandles(renderCtx, handles, renderZoom);
+            }
         } else if (ann.type === 'text') {
             renderCtx.font = `${ann.size}px ${ann.font}`;
             renderCtx.textAlign = 'left';
-            
-            // THE FIX IS HERE:
-            // 1. Set the baseline to 'top'. This means fillText(x, y) will draw the text
-            //    with its TOP-LEFT corner at (x, y). This is the simplest alignment.
             renderCtx.textBaseline = 'top'; 
             
             const lines = ann.text.split('\n');
@@ -140,7 +162,6 @@ export function drawAnnotation(ann) {
                 const rectH = (lines.length * lineHeight) - (ann.size * 0.2) + padding;
                 
                 const rectX = ann.x - padding;
-                // Since baseline is 'top', the background's Y position is also simple.
                 const rectY = ann.y - padding / 2;
                 
                 renderCtx.fillStyle = ann.bgColor;
@@ -149,8 +170,6 @@ export function drawAnnotation(ann) {
 
             renderCtx.fillStyle = ann.color || "#ff0000";
             
-            // 2. Draw each line, starting from the annotation's Y coordinate
-            //    and adding the line height for each subsequent line.
             lines.forEach((line, index) => {
                 renderCtx.fillText(line, ann.x, ann.y + (index * lineHeight));
             });

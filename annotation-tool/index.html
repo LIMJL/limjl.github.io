@@ -84,7 +84,27 @@
         - <b>更新日誌 (v6.5):</b> 新增裁切功能與優化文字輸入框定位。<br>
         - <b>先前更新：</b> 行動裝置支援、動態圖片高度、復原/取消復原等功能。
     </p>
+
+    <!-- START: 新增的聯絡我們按鈕和對話框 -->
+    <button id="contactBtn" class="toolbar-btn contact-btn" title="有問題？聯絡我們"></button>
+    <!-- END: 新增的聯絡我們按鈕和對話框 -->
+
 </div>
+
+<!-- START: 新增的彈出式對話框結構 (放在 #app-container 外層，確保層級最高) -->
+<div id="contactModalOverlay" class="modal-overlay">
+    <div class="modal-content">
+        <button id="closeModalBtn" class="modal-close-btn">&times;</button>
+        <h3>有任何問題或意見嗎？</h3>
+        <p>請填寫下方表格，我們會盡快與您聯繫。</p>
+        <div class="form-wrapper">
+            <!-- 將您的 Google 表單嵌入程式碼的 src 貼到這裡 -->
+            <!-- 確保 embedded=true 在連結中 -->
+            <iframe id="googleFormIframe" src="https://docs.google.com/forms/d/e/1FAIpQLScin9rNo5K6F8rHapCGsdBs8wtEDm3W-svCQAvpFnzgdiDfaQ/viewform?embedded=true" frameborder="0" marginheight="0" marginwidth="0">載入中…</iframe>
+        </div>
+    </div>
+</div>
+<!-- END: 新增的彈出式對話框結構 -->
 
 <!-- 2. 引入模組化的 JavaScript 主檔案 -->
 <script type="module" src="js/app.js"></script>

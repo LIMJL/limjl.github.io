@@ -9,7 +9,10 @@ export let canvasContainer, canvas, ctx, imgInput, clearBtn, undoBtn, redoBtn, c
     numberBtn, ellipseBtn, rectBtn, arrowBtn, highlighterBtn, textBtn, colorPicker,
     zoomOutBtn, zoomInBtn, zoomFitBtn, saveProjectBtn, copyImageBtn, downloadImageBtn,
     textInputContainer, textInputArea, textConfirmBtn, textCancelBtn,
-    moveNumberInput, circleMenu, textMenu, arrowMenu, cropToolbar, applyCropBtn, cancelCropBtn;
+    moveNumberInput, circleMenu, textMenu, arrowMenu, cropToolbar, applyCropBtn, cancelCropBtn,
+    // START: 新增的 DOM 元素宣告
+    contactBtn, contactModalOverlay, closeModalBtn, googleFormIframe;
+    // END: 新增的 DOM 元素宣告
 
 // --- Initialization Function ---
 export function initUI() {
@@ -45,6 +48,12 @@ export function initUI() {
     cropToolbar = document.getElementById('crop-toolbar');
     applyCropBtn = document.getElementById('applyCropBtn');
     cancelCropBtn = document.getElementById('cancelCropBtn');
+    // START: 在這裡初始化新增的 DOM 元素
+    contactBtn = document.getElementById('contactBtn');
+    contactModalOverlay = document.getElementById('contactModalOverlay');
+    closeModalBtn = document.getElementById('closeModalBtn');
+    googleFormIframe = document.getElementById('googleFormIframe');
+    // END: 在這裡初始化新增的 DOM 元素
 }
 
 
@@ -64,6 +73,9 @@ export function setupIcons() {
     zoomInBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>`;
     zoomOutBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>`;
     zoomFitBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M3 9V3h6M21 15v6h-6"/></svg>`;
+    // START: 聯絡我們按鈕圖示
+    contactBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>聯絡我們`;
+    // END: 聯絡我們按鈕圖示
 }
 
 export function setupMenus() {
@@ -112,12 +124,12 @@ export function updateCursor() {
 }
 
 export function isAnyMenuVisible() {
-    const popups = [circleMenu, textMenu, arrowMenu, moveNumberInput, textInputContainer];
+    const popups = [circleMenu, textMenu, arrowMenu, moveNumberInput, textInputContainer, contactModalOverlay]; // Add contactModalOverlay here
     return popups.some(p => p.style.display === 'block' || p.style.display === 'flex');
 }
 
 export function hideAllMenus() {
-    [circleMenu, textMenu, arrowMenu, moveNumberInput, textInputContainer].forEach(m => m.style.display = 'none');
+    [circleMenu, textMenu, arrowMenu, moveNumberInput, textInputContainer, contactModalOverlay].forEach(m => m.style.display = 'none'); // Add contactModalOverlay here
 }
 
 function positionMenu(menu, triggerElement) {

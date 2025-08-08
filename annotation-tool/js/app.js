@@ -1,7 +1,6 @@
-// js/app.js (最终修正版 - 修复 undo/redo)
-
 import * as stateManager from './state.js';
 import { initUI, setupIcons, setupMenus, updateToolbarState, colorPicker, textInputContainer, hideAllMenus, updateCursor } from './ui.js';
+// --- FIX Step 1: Import onCanvasMouseUp to finalize actions ---
 import { setupEventListeners, onCanvasMouseUp } from './events.js';
 import { createBrush } from './file.js';
 import { draw } from './drawing.js';
@@ -12,7 +11,10 @@ window.img = null;
 
 // --- State Management Bridge ---
 export function setMode(newMode, fromUndoRedo = false) {
-    if (!fromUndoRedo && stateManager.drawing) {
+    // --- FIX Step 2: Check for 'drawing' OR 'dragging' (resizing/moving) ---
+    // If the user is in the middle of any action, simulate a "mouse up" to
+    // complete it before changing the tool. This prevents state conflicts.
+    if (!fromUndoRedo && (stateManager.drawing || stateManager.dragging)) {
         onCanvasMouseUp({ button: 0 });
     }
     
@@ -40,28 +42,22 @@ export function saveState() {
     if (historyIndex < history.length - 1) {
         history = history.slice(0, historyIndex + 1);
     }
-    // 儲存更多相關狀態
     history.push(JSON.stringify({ annotations, zoom, viewX, viewY, color, numberSize, fontSize }));
     historyIndex = history.length - 1;
     stateManager.setHistory(history, historyIndex);
     updateToolbarState();
 }
 
-// THE FIX IS HERE: A more robust restoreState function
 function restoreState(historyEntry) {
     const state = JSON.parse(historyEntry);
     
-    // Restore all saved states with default fallbacks
-    // This ensures that even if a property is missing from the history object,
-    // it will be reset to a valid default value instead of undefined.
-    stateManager.setAnnotations(state.annotations || []); // <-- FIX: Default to an empty array
+    stateManager.setAnnotations(state.annotations || []);
     stateManager.setZoom(state.zoom || 1.0);
     stateManager.setView(state.viewX || 0, state.viewY || 0);
     stateManager.setColor(state.color || '#ff0000');
     stateManager.setNumberSize(state.numberSize || 18, false);
     stateManager.setFontSize(state.fontSize || 24, false);
     
-    // Update UI to reflect the restored state
     colorPicker.value = stateManager.color;
     
     draw();
@@ -85,7 +81,6 @@ export function redo() {
         restoreState(history[historyIndex]);
     }
 }
-
 
 export { 
     setAnnotations, setSelected, setOriginalImageSize, 

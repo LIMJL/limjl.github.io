@@ -1,7 +1,8 @@
 // js/events.js
 import * as state from './state.js';
 import * as ui from './ui.js';
-import { screenToImageCoords, hitTest, addLongPress, isLongPressTriggered, resetLongPress } from './utils.js';
+// --- NEW: Import getHandleAtPoint ---
+import { screenToImageCoords, hitTest, addLongPress, isLongPressTriggered, resetLongPress, getHandleAtPoint } from './utils.js';
 import { draw, debouncedResize } from './drawing.js';
 import { handleFile, saveProject, copyImage, downloadImage, reindexNumbers } from './file.js';
 import { startCrop, onCropMouseDown, onCropMouseMove, onCropMouseUp, updateCursorForCrop } from './crop.js';
@@ -10,6 +11,7 @@ import { setMode, saveState, undo, redo, setAnnotations, setSelected, setDraggin
 let lastMousePos = { x: 0, y: 0 };
 let pinchStartDist = 0;
 let longPressTimer = null;
+let currentHoverHandle = null;
 
 export function setupEventListeners() {
     window.addEventListener('resize', debouncedResize);
@@ -52,6 +54,17 @@ export function setupEventListeners() {
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
     
+    // START: 新增的聯絡我們按鈕事件監聽器
+    ui.contactBtn.addEventListener('click', showContactModal);
+    ui.closeModalBtn.addEventListener('click', hideContactModal);
+    ui.contactModalOverlay.addEventListener('click', (e) => {
+        // 如果點擊的是背景遮罩，則關閉對話框
+        if (e.target === ui.contactModalOverlay) {
+            hideContactModal();
+        }
+    });
+    // END: 新增的聯絡我們按鈕事件監聽器
+
     window.addEventListener('contextmenu', e => {
         const target = e.target;
         const isEditable = target.tagName === 'INPUT' || 
@@ -67,7 +80,9 @@ export function setupEventListeners() {
         if (e.button !== 0) {
             return;
         }
-        const isClickingOnMenu = [ui.circleMenu, ui.textMenu, ui.arrowMenu, ui.moveNumberInput, ui.textInputContainer].some(menu => menu.contains(e.target));
+        // START: 在檢查是否點擊菜單時，也包含新的對話框
+        const isClickingOnMenu = [ui.circleMenu, ui.textMenu, ui.arrowMenu, ui.moveNumberInput, ui.textInputContainer, ui.contactModalOverlay].some(menu => menu.contains(e.target));
+        // END: 在檢查是否點擊菜單時，也包含新的對話框
         const isClickingOnButton = [...document.querySelectorAll('.toolbar button, .toolbar input, #crop-toolbar button')].some(btn => btn.contains(e.target));
         if (!isClickingOnMenu && !isClickingOnButton) {
             ui.hideAllMenus();
@@ -208,6 +223,7 @@ function handleColorChange(e) {
     }
 }
 
+// --- MOUSE DOWN: Logic is heavily modified to detect handles ---
 async function onCanvasMouseDown(e) {
     clearTimeout(longPressTimer);
     resetLongPress();
@@ -218,6 +234,31 @@ async function onCanvasMouseDown(e) {
     if (state.spacebarDown) { setPanning(true); setPanStart(e.clientX, e.clientY); ui.updateCursor(); return; }
 
     const { x, y } = screenToImageCoords(e.clientX, e.clientY);
+
+    // --- NEW: Check for handle hits on the selected object FIRST ---
+    if (state.selected) {
+        const handle = getHandleAtPoint(state.selected, x, y);
+        if (handle) {
+            const ann = state.selected;
+            // Store the original state of the annotation for resizing calculations
+            setDragging({
+                ann,
+                handle,
+                startX: ann.x,
+                startY: ann.y,
+                startW: ann.w,
+                startH: ann.h,
+                startRx: ann.rx,
+                startRy: ann.ry,
+                clickX: x,
+                clickY: y,
+            });
+            draw();
+            return;
+        }
+    }
+
+    // --- OLD LOGIC (modified): Find which annotation is being clicked ---
     let hit = false;
     for (let i = state.annotations.length - 1; i >= 0; i--) {
         if (await hitTest(state.annotations[i], x, y)) {
@@ -234,8 +275,11 @@ async function onCanvasMouseDown(e) {
 
             state.annotations.splice(i, 1);
             state.annotations.push(ann);
-            setDragging({ ann: ann, offsetX: x - ann.x, offsetY: y - ann.y });
-            setSelected(ann);
+            setSelected(ann); // Select the new annotation
+
+            // Set dragging for moving the whole object ('body')
+            setDragging({ ann, handle: 'body', offsetX: x - ann.x, offsetY: y - ann.y });
+
             setMode(ann.type);
             
             if (ann.type !== 'highlighter') {
@@ -253,6 +297,7 @@ async function onCanvasMouseDown(e) {
         }
     }
 
+    // If we clicked on nothing, deselect and prepare to draw a new shape
     setSelected(null);
     if (!hit) {
         setDrawing(true);
@@ -279,9 +324,12 @@ async function onCanvasMouseDown(e) {
     }
 }
 
+// --- MOUSE MOVE: Logic is heavily modified to handle resizing ---
 function onCanvasMouseMove(e) {
     clearTimeout(longPressTimer);
     lastMousePos = { x: e.clientX, y: e.clientY };
+    const { x, y } = screenToImageCoords(e.clientX, e.clientY);
+    setShiftPressed(e.shiftKey);
 
     if (state.isPanning) {
         const dx = e.clientX - state.panStart.x;
@@ -296,24 +344,41 @@ function onCanvasMouseMove(e) {
         onCropMouseMove(e);
         return;
     }
-
-    const { x, y } = screenToImageCoords(e.clientX, e.clientY);
-    setShiftPressed(e.shiftKey);
-
+    
+    // --- DRAGGING LOGIC (Resize and Move) ---
     if (state.dragging) {
-        const ann = state.dragging.ann;
-        const dx = x - state.dragging.offsetX - ann.x;
-        const dy = y - state.dragging.offsetY - ann.y;
-        ann.x += dx;
-        ann.y += dy;
-        if (ann.type === 'highlighter' && ann.path) {
-            ann.path.forEach(p => { p.x += dx; p.y += dy; });
-        } else if (ann.type === 'arrow') {
-            ann.x2 += dx;
-            ann.y2 += dy;
+        const { ann, handle, startX, startY, startW, startH, startRx, startRy, clickX, clickY, offsetX, offsetY } = state.dragging;
+        const dx = x - clickX;
+        const dy = y - clickY;
+
+        if (handle && handle !== 'body') {
+            // --- RESIZE LOGIC ---
+            if (ann.type === 'rect') {
+                let newX = startX, newY = startY, newW = startW, newH = startH;
+                if (handle.includes('e')) newW += dx;
+                if (handle.includes('w')) { newW -= dx; newX += dx; }
+                if (handle.includes('s')) newH += dy;
+                if (handle.includes('n')) { newH -= dy; newY += dy; }
+                
+                // Keep width/height positive
+                if (newW < 0) { ann.x = newX + newW; ann.w = -newW; } else { ann.x = newX; ann.w = newW; }
+                if (newH < 0) { ann.y = newY + newH; ann.h = -newH; } else { ann.y = newY; ann.h = newH; }
+            } else if (ann.type === 'ellipse') {
+                if (handle.includes('e')) ann.rx = Math.max(5, startRx + dx);
+                if (handle.includes('w')) ann.rx = Math.max(5, startRx - dx);
+                if (handle.includes('s')) ann.ry = Math.max(5, startRy + dy);
+                if (handle.includes('n')) ann.ry = Math.max(5, startRy - dy);
+            }
+        } else if (handle === 'body') {
+            // --- MOVE LOGIC (using original offset method) ---
+            ann.x = x - offsetX;
+            ann.y = y - offsetY;
+            if (ann.type === 'highlighter') ann.path.forEach(p => { p.x += (x - offsetX) - ann.x; p.y += (y - offsetY) - ann.y; });
+            if (ann.type === 'arrow') { ann.x2 += (x - offsetX) - ann.x; ann.y2 += (y - offsetY) - ann.y; }
         }
         draw();
     } else if (state.drawing) {
+        // --- DRAW NEW SHAPE LOGIC ---
         if (state.mode === 'highlighter') {
             state.highlighterPath.push({ x, y });
         } else if (state.tempShape) {
@@ -321,8 +386,24 @@ function onCanvasMouseMove(e) {
             state.tempShape.y2 = y;
         }
         draw();
+    } else {
+        // --- CURSOR UPDATE LOGIC ---
+        let newCursor = 'crosshair';
+        if (state.mode === 'text') newCursor = 'text';
+        if (state.selected) {
+            const handle = getHandleAtPoint(state.selected, x, y);
+            if (handle) {
+                if (handle === 'n' || handle === 's') newCursor = 'ns-resize';
+                else if (handle === 'e' || handle === 'w') newCursor = 'ew-resize';
+                else if (handle === 'nw' || handle === 'se') newCursor = 'nwse-resize';
+                else if (handle === 'ne' || handle === 'sw') newCursor = 'nesw-resize';
+                else if (handle === 'body') newCursor = 'move';
+            }
+        }
+        ui.canvas.style.cursor = newCursor;
     }
 }
+
 
 export function onCanvasMouseUp(e) {
     clearTimeout(longPressTimer);
@@ -347,10 +428,24 @@ export function onCanvasMouseUp(e) {
     }
 
     if (state.dragging) {
+        // Normalize negative width/height for rectangles
+        if (state.dragging.ann.type === 'rect') {
+            const ann = state.dragging.ann;
+            if (ann.w < 0) {
+                ann.x += ann.w;
+                ann.w = -ann.w;
+            }
+            if (ann.h < 0) {
+                ann.y += ann.h;
+                ann.h = -ann.h;
+            }
+        }
         setDragging(null);
         saveState();
+        draw(); // Redraw to remove selection shadow if mouse is outside
         return;
     }
+
     if (!state.drawing) return;
     setDrawing(false);
 
@@ -427,6 +522,9 @@ async function onCanvasContextMenu(e) {
                 ui.showMoveNumberInput(e, ann);
             } else if (ann.type === 'text') {
                 ui.showTextInput(e, ann.x, ann.y, ann);
+            } else if (ann.type === 'rect' || ann.type === 'ellipse') {
+                // No custom menu for rect/ellipse, just select it
+                draw();
             }
             return;
         }
@@ -440,17 +538,14 @@ function onCanvasWheel(e) {
     handleZoom(Math.sign(e.deltaY), e.clientX - rect.left, e.clientY - rect.top);
 }
 
-// --- FIX: The onCanvasTouchStart function is updated here ---
 function onCanvasTouchStart(e) {
     e.preventDefault();
     const touch = e.touches[0];
-    // Create a simulated event that includes the 'button' property
-    // so that the onCanvasMouseDown function works correctly.
     const simulatedEvent = {
         clientX: touch.clientX,
         clientY: touch.clientY,
         target: touch.target,
-        button: 0, // This is the crucial fix
+        button: 0,
         preventDefault: () => e.preventDefault(),
         stopPropagation: () => e.stopPropagation(),
     };
@@ -466,7 +561,13 @@ function onCanvasTouchStart(e) {
 function onCanvasTouchMove(e) {
     e.preventDefault();
     if (e.touches.length === 1) {
-        onCanvasMouseMove(e.touches[0]);
+        const simulatedEvent = {
+            clientX: e.touches[0].clientX,
+            clientY: e.touches[0].clientY,
+            target: e.touches[0].target,
+            button: 0
+        };
+        onCanvasMouseMove(simulatedEvent);
     } else if (e.touches.length === 2 && state.isPanning) {
         const pinchCurrentDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
         const rect = ui.canvas.getBoundingClientRect();
@@ -500,6 +601,14 @@ function onCanvasTouchEnd(e) {
 
 function onKeyDown(e) {
     if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+    // START: 彈出對話框開啟時，禁用背景滾動 (ESC 關閉)
+    if (ui.contactModalOverlay.style.display === 'flex' && e.key === 'Escape') {
+        hideContactModal();
+        e.preventDefault(); // 防止滾動頁面
+        return; // 在模態框打開時，不處理其他按鍵事件
+    }
+    // END: 彈出對話框開啟時，禁用背景滾動 (ESC 關閉)
+
     if (e.key === ' ' && !state.spacebarDown && !ui.isAnyMenuVisible()) {
         setSpacebarDown(true);
         ui.updateCursor();
@@ -608,3 +717,20 @@ export function fitToScreen() {
     setView(newViewX, newViewY);
     draw();
 }
+
+// START: 新增的彈出對話框顯示/隱藏函式
+export function showContactModal() {
+    ui.hideAllMenus(); // 隱藏所有其他彈出式菜單，避免重疊
+    const googleFormUrl = "https://docs.google.com/forms/d/e/1FAIpQLScin9rNo5K6F8rHapCGsdBs8wtEDm3W-svCQAvpFnzgdiDfaQ/viewform?embedded=true"; // ***請務必替換成您的 Google 表單嵌入連結***
+    ui.googleFormIframe.src = googleFormUrl; // 載入表單
+    ui.contactModalOverlay.style.display = 'flex'; // 顯示對話框
+    document.body.style.overflow = 'hidden'; // 防止背景頁面滾動
+    ui.googleFormIframe.focus(); // 讓 iframe 獲得焦點，以便在某些裝置上可以滾動
+}
+
+function hideContactModal() {
+    ui.contactModalOverlay.style.display = 'none'; // 隱藏對話框
+    ui.googleFormIframe.src = ''; // 清空 src，停止載入內容並釋放資源
+    document.body.style.overflow = ''; // 恢復背景頁面滾動
+}
+// END: 新增的彈出對話框顯示/隱藏函式
