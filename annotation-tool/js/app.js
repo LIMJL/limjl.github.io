@@ -1,6 +1,5 @@
 import * as stateManager from './state.js';
 import { initUI, setupIcons, setupMenus, updateToolbarState, colorPicker, textInputContainer, hideAllMenus, updateCursor } from './ui.js';
-// [修改] 移除 onCanvasMouseUp 的引入，打破循環相依
 import { setupEventListeners } from './events.js';
 import { createBrush } from './file.js';
 import { draw } from './drawing.js';
@@ -11,10 +10,6 @@ window.img = null;
 
 // --- State Management Bridge ---
 export function setMode(newMode, fromUndoRedo = false) {
-    // [修改] 移除這段造成循環相依的保護程式碼
-    // if (!fromUndoRedo && (stateManager.drawing || stateManager.dragging)) {
-    //     onCanvasMouseUp({ button: 0 });
-    // }
     
     stateManager.setMode(newMode);
     
@@ -94,7 +89,7 @@ export {
 
 // --- Initialization ---
 function initialize() {
-    console.log("Annotation Tool v6.5 Initializing (Modular)...");
+    console.log("Markify v6.5 Initializing (Modular)...");
     
     initUI();
     setupIcons();
