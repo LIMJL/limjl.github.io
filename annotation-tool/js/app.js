@@ -1,7 +1,7 @@
 import * as stateManager from './state.js';
 import { initUI, setupIcons, setupMenus, updateToolbarState, colorPicker, textInputContainer, hideAllMenus, updateCursor } from './ui.js';
-// --- FIX Step 1: Import onCanvasMouseUp to finalize actions ---
-import { setupEventListeners, onCanvasMouseUp } from './events.js';
+// [修改] 移除 onCanvasMouseUp 的引入，打破循環相依
+import { setupEventListeners } from './events.js';
 import { createBrush } from './file.js';
 import { draw } from './drawing.js';
 import { initCrop } from './crop.js';
@@ -11,12 +11,10 @@ window.img = null;
 
 // --- State Management Bridge ---
 export function setMode(newMode, fromUndoRedo = false) {
-    // --- FIX Step 2: Check for 'drawing' OR 'dragging' (resizing/moving) ---
-    // If the user is in the middle of any action, simulate a "mouse up" to
-    // complete it before changing the tool. This prevents state conflicts.
-    if (!fromUndoRedo && (stateManager.drawing || stateManager.dragging)) {
-        onCanvasMouseUp({ button: 0 });
-    }
+    // [修改] 移除這段造成循環相依的保護程式碼
+    // if (!fromUndoRedo && (stateManager.drawing || stateManager.dragging)) {
+    //     onCanvasMouseUp({ button: 0 });
+    // }
     
     stateManager.setMode(newMode);
     
@@ -38,11 +36,11 @@ export function setMode(newMode, fromUndoRedo = false) {
 }
 
 export function saveState() {
-    let { history, historyIndex, annotations, zoom, viewX, viewY, color, numberSize, fontSize } = stateManager;
+    let { history, historyIndex, annotations, zoom, viewX, viewY, color, numberSize, fontSize, mode } = stateManager;
     if (historyIndex < history.length - 1) {
         history = history.slice(0, historyIndex + 1);
     }
-    history.push(JSON.stringify({ annotations, zoom, viewX, viewY, color, numberSize, fontSize }));
+    history.push(JSON.stringify({ annotations, zoom, viewX, viewY, color, numberSize, fontSize, mode }));
     historyIndex = history.length - 1;
     stateManager.setHistory(history, historyIndex);
     updateToolbarState();
@@ -58,6 +56,8 @@ function restoreState(historyEntry) {
     stateManager.setNumberSize(state.numberSize || 18, false);
     stateManager.setFontSize(state.fontSize || 24, false);
     
+    setMode(state.mode || 'number', true);
+
     colorPicker.value = stateManager.color;
     
     draw();

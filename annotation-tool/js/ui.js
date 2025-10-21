@@ -10,9 +10,7 @@ export let canvasContainer, canvas, ctx, imgInput, clearBtn, undoBtn, redoBtn, c
     zoomOutBtn, zoomInBtn, zoomFitBtn, saveProjectBtn, copyImageBtn, downloadImageBtn,
     textInputContainer, textInputArea, textConfirmBtn, textCancelBtn,
     moveNumberInput, circleMenu, textMenu, arrowMenu, cropToolbar, applyCropBtn, cancelCropBtn,
-    // START: 新增的 DOM 元素宣告
     contactBtn, contactModalOverlay, closeModalBtn, googleFormIframe;
-    // END: 新增的 DOM 元素宣告
 
 // --- Initialization Function ---
 export function initUI() {
@@ -48,12 +46,10 @@ export function initUI() {
     cropToolbar = document.getElementById('crop-toolbar');
     applyCropBtn = document.getElementById('applyCropBtn');
     cancelCropBtn = document.getElementById('cancelCropBtn');
-    // START: 在這裡初始化新增的 DOM 元素
     contactBtn = document.getElementById('contactBtn');
     contactModalOverlay = document.getElementById('contactModalOverlay');
     closeModalBtn = document.getElementById('closeModalBtn');
     googleFormIframe = document.getElementById('googleFormIframe');
-    // END: 在這裡初始化新增的 DOM 元素
 }
 
 
@@ -73,15 +69,21 @@ export function setupIcons() {
     zoomInBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>`;
     zoomOutBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>`;
     zoomFitBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M3 9V3h6M21 15v6h-6"/></svg>`;
-    // START: 聯絡我們按鈕圖示
     contactBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>聯絡我們`;
-    // END: 聯絡我們按鈕圖示
 }
 
 export function setupMenus() {
-    circleMenu.innerHTML = `<button class="close-btn" onclick="this.parentElement.style.display='none'" title="關閉">×</button><label><span>大小</span><span class="preview-area"><input type="range" id="menuNumberSize" min="10" max="100" value="18"><span id="number-size-value" class="size-value">18</span><span id="number-size-preview"></span></span></label><hr style="border:none; border-top: 1px solid #eee; margin: 8px 0;"><label><span>啟用背景</span><input type="checkbox" id="numberBgCheckbox"></label><label><span>背景顏色</span><input type="color" id="numberBgColorPicker" value="#ffffff"></label>`;
-    textMenu.innerHTML = `<button class="close-btn" onclick="this.parentElement.style.display='none'" title="關閉">×</button><label><span>字型</span><select id="menuFontFamily"><option value='"Noto Sans TC", "思源黑體", sans-serif'>思源黑體</option><option value="微軟正黑體">微軟正黑體</option><option value="標楷體">標楷體</option><option value="Arial">Arial</option><option value="Times New Roman">Times New Roman</option><option value="Courier New">Courier New</option></select></label><label><span>字體大小</span><span class="preview-area"><input type="range" id="menuFontSize" min="12" max="200" value="24"><span id="font-size-value" class="size-value">24</span><span id="font-size-preview">字</span></span></label><hr style="border:none; border-top: 1px solid #eee; margin: 8px 0;"><label><span>啟用背景</span><input type="checkbox" id="textBgCheckbox"></label><label><span>背景顏色</span><input type="color" id="textBgColorPicker" value="#ffffff"></label>`;
-    arrowMenu.innerHTML = `<button class="close-btn" onclick="this.parentElement.style.display='none'" title="關閉">×</button><label><input type="radio" name="arrowStyle" value="classic" checked><svg width="32" height="16"><line x1="2" y1="8" x2="28" y2="8" stroke="#888" stroke-width="3"/><polygon points="28,8 22,5 22,11" fill="#888"/></svg>經典</label><label><input type="radio" name="arrowStyle" value="curve"><svg width="32" height="16"><path d="M2,14 Q16,2 28,8" fill="none" stroke="#888" stroke-width="3"/><polygon points="28,8 22,5 22,11" fill="#888"/></svg>彎曲</label><label><input type="radio" name="arrowStyle" value="chalk-brush"><svg width="32" height="16" viewBox="0 0 32 16"><path d="M2,14 C10,4 20,4 28,8" fill="none" stroke="#888" stroke-width="2.5" stroke-linecap="round"/><path d="M22,5 L28,8 L22,11" fill="none" stroke="#888" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>曲線筆刷</label><label><input type="radio" name="arrowStyle" value="hatched"><svg width="32" height="16" viewBox="0 0 32 16"><path d="M2,6 L22,6 L22,4 L30,8 L22,12 L22,10 L2,10 Z" fill="none" stroke="#888" stroke-width="1.5"/><line x1="4" y1="12" x2="10" y2="4" stroke="#888" stroke-width="1"/><line x1="8" y1="12" x2="14" y2="4" stroke="#888" stroke-width="1"/><line x1="12" y1="12" x2="18" y2="4" stroke="#888" stroke-width="1"/></svg>斜線填充</label><label><input type="radio" name="arrowStyle" value="blocky"><svg width="32" height="16" viewBox="0 0 32 16"><path d="M2,6 L22,6 L22,4 L30,8 L22,12 L22,10 L2,10 Z" fill="none" stroke="#888" stroke-width="2"/></svg>空心區塊</label>`;
+    // [修改] 移除 onclick="..." 屬性
+    circleMenu.innerHTML = `<button class="close-btn menu-close-btn" title="關閉">×</button><label><span>大小</span><span class="preview-area"><input type="range" id="menuNumberSize" min="10" max="100" value="18"><span id="number-size-value" class="size-value">18</span><span id="number-size-preview"></span></span></label><hr style="border:none; border-top: 1px solid #eee; margin: 8px 0;"><label><span>啟用背景</span><input type="checkbox" id="numberBgCheckbox"></label><label><span>背景顏色</span><input type="color" id="numberBgColorPicker" value="#ffffff"></label>`;
+    textMenu.innerHTML = `<button class="close-btn menu-close-btn" title="關閉">×</button><label><span>字型</span><select id="menuFontFamily"><option value='"Noto Sans TC", "思源黑體", sans-serif'>思源黑體</option><option value="微軟正黑體">微軟正黑體</option><option value="標楷體">標楷體</option><option value="Arial">Arial</option><option value="Times New Roman">Times New Roman</option><option value="Courier New">Courier New</option></select></label><label><span>字體大小</span><span class="preview-area"><input type="range" id="menuFontSize" min="12" max="200" value="24"><span id="font-size-value" class="size-value">24</span><span id="font-size-preview">字</span></span></label><hr style="border:none; border-top: 1px solid #eee; margin: 8px 0;"><label><span>啟用背景</span><input type="checkbox" id="textBgCheckbox"></label><label><span>背景顏色</span><input type="color" id="textBgColorPicker" value="#ffffff"></label>`;
+    arrowMenu.innerHTML = `<button class="close-btn menu-close-btn" title="關閉">×</button><label><input type="radio" name="arrowStyle" value="classic" checked><svg width="32" height="16"><line x1="2" y1="8" x2="28" y2="8" stroke="#888" stroke-width="3"/><polygon points="28,8 22,5 22,11" fill="#888"/></svg>經典</label><label><input type="radio" name="arrowStyle" value="curve"><svg width="32" height="16"><path d="M2,14 Q16,2 28,8" fill="none" stroke="#888" stroke-width="3"/><polygon points="28,8 22,5 22,11" fill="#888"/></svg>彎曲</label><label><input type="radio" name="arrowStyle" value="chalk-brush"><svg width="32" height="16" viewBox="0 0 32 16"><path d="M2,14 C10,4 20,4 28,8" fill="none" stroke="#888" stroke-width="2.5" stroke-linecap="round"/><path d="M22,5 L28,8 L22,11" fill="none" stroke="#888" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>曲線筆刷</label><label><input type="radio" name="arrowStyle" value="hatched"><svg width="32" height="16" viewBox="0 0 32 16"><path d="M2,6 L22,6 L22,4 L30,8 L22,12 L22,10 L2,10 Z" fill="none" stroke="#888" stroke-width="1.5"/><line x1="4" y1="12" x2="10" y2="4" stroke="#888" stroke-width="1"/><line x1="8" y1="12" x2="14" y2="4" stroke="#888" stroke-width="1"/><line x1="12" y1="12" x2="18" y2="4" stroke="#888" stroke-width="1"/></svg>斜線填充</label><label><input type="radio" name="arrowStyle" value="blocky"><svg width="32" height="16" viewBox="0 0 32 16"><path d="M2,6 L22,6 L22,4 L30,8 L22,12 L22,10 L2,10 Z" fill="none" stroke="#888" stroke-width="2"/></svg>空心區塊</label>`;
+
+    // [新增] 使用 JavaScript 綁定關閉按鈕的事件
+    document.querySelectorAll('.menu-close-btn').forEach(button => {
+        button.addEventListener('click', (event) => {
+            event.target.parentElement.style.display = 'none';
+        });
+    });
 }
 
 export function updateToolbarState() {
@@ -124,12 +126,12 @@ export function updateCursor() {
 }
 
 export function isAnyMenuVisible() {
-    const popups = [circleMenu, textMenu, arrowMenu, moveNumberInput, textInputContainer, contactModalOverlay]; // Add contactModalOverlay here
+    const popups = [circleMenu, textMenu, arrowMenu, moveNumberInput, textInputContainer, contactModalOverlay];
     return popups.some(p => p.style.display === 'block' || p.style.display === 'flex');
 }
 
 export function hideAllMenus() {
-    [circleMenu, textMenu, arrowMenu, moveNumberInput, textInputContainer, contactModalOverlay].forEach(m => m.style.display = 'none'); // Add contactModalOverlay here
+    [circleMenu, textMenu, arrowMenu, moveNumberInput, textInputContainer].forEach(m => m.style.display = 'none');
 }
 
 function positionMenu(menu, triggerElement) {
@@ -230,30 +232,24 @@ export function showTextInput(event, imageX, imageY, existingAnnotation = null) 
     let left, top;
 
     if (existingAnnotation) {
-        // --- EDITING MODE ---
         textInputArea.value = existingAnnotation.text;
         textInputContainer.dataset.editing = "true";
-        // Position the input box over the existing text annotation
         const screenCoords = imageToScreenCoords(existingAnnotation.x, existingAnnotation.y);
         left = screenCoords.x;
         top = screenCoords.y;
     } else {
-        // --- CREATING MODE ---
         textInputArea.value = "";
         delete textInputContainer.dataset.editing;
         textInputContainer.dataset.coords = JSON.stringify({ x: imageX, y: imageY });
-        // Position at the mouse click location
         left = event.clientX;
         top = event.clientY;
     }
 
-    // Position initially off-screen to measure, then place correctly
     textInputContainer.style.left = '-9999px';
     textInputContainer.style.top = '-9999px';
     
     requestAnimationFrame(() => {
         const menuRect = textInputContainer.getBoundingClientRect();
-        // Adjust if the menu would go off-screen
         if (left + menuRect.width > window.innerWidth - 8) {
             left = window.innerWidth - menuRect.width - 8;
         }

@@ -1,5 +1,5 @@
 // js/utils.js
-import { canvas } from './ui.js';
+import { canvas, ctx } from './ui.js'; // [修改] 在此靜態引入 ctx
 import * as state from './state.js';
 
 let longPressTriggered = false;
@@ -75,9 +75,9 @@ export function imageToScreenCoords(imageX, imageY) {
     };
 }
 
-export async function hitTest(ann, x, y) {
-    const ui = await import('./ui.js');
-    const ctx = ui.ctx;
+// [修改] 移除 async，使其成為一個同步函式
+export function hitTest(ann, x, y) {
+    // [修改] 移除 const ui = await import('./ui.js');
     if (!ctx) return false;
 
     const tolerance = 10 / state.zoom;

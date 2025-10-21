@@ -123,21 +123,30 @@ export function saveProject() {
 function loadProject(projectData) {
     if (!projectData.imageData || !projectData.annotations) { alert('無效的專案檔。'); return; }
     loadImage(projectData.imageData, () => {
-        const loadedAnnotations = projectData.annotations.map(ann => {
-            const newAnn = { ...ann };
-            const scaleX = state.originalImageSize.width;
-            const scaleY = state.originalImageSize.height;
-            if (newAnn.x !== undefined) newAnn.x *= scaleX;
-            if (newAnn.y !== undefined) newAnn.y *= scaleY;
-            if (newAnn.x2 !== undefined) newAnn.x2 *= scaleX;
-            if (newAnn.y2 !== undefined) newAnn.y2 *= scaleY;
-            if (newAnn.w !== undefined) newAnn.w *= scaleX;
-            if (newAnn.h !== undefined) newAnn.h *= scaleY;
-            if (newAnn.rx !== undefined) newAnn.rx *= scaleX;
-            if (newAnn.ry !== undefined) newAnn.ry *= scaleY;
-            if (newAnn.path) newAnn.path = newAnn.path.map(p => ({ x: p.x * scaleX, y: p.y * scaleY }));
-            return newAnn;
-        });
+        const loadedAnnotations = projectData.annotations
+            // [修改] 在 map 之前增加 filter 步驟，過濾掉無效或損毀的標註資料
+            .filter(ann => 
+                ann && 
+                typeof ann === 'object' && 
+                ann.type && 
+                typeof ann.x === 'number' && 
+                typeof ann.y === 'number'
+            )
+            .map(ann => {
+                const newAnn = { ...ann };
+                const scaleX = state.originalImageSize.width;
+                const scaleY = state.originalImageSize.height;
+                if (newAnn.x !== undefined) newAnn.x *= scaleX;
+                if (newAnn.y !== undefined) newAnn.y *= scaleY;
+                if (newAnn.x2 !== undefined) newAnn.x2 *= scaleX;
+                if (newAnn.y2 !== undefined) newAnn.y2 *= scaleY;
+                if (newAnn.w !== undefined) newAnn.w *= scaleX;
+                if (newAnn.h !== undefined) newAnn.h *= scaleY;
+                if (newAnn.rx !== undefined) newAnn.rx *= scaleX;
+                if (newAnn.ry !== undefined) newAnn.ry *= scaleY;
+                if (newAnn.path) newAnn.path = newAnn.path.map(p => ({ x: p.x * scaleX, y: p.y * scaleY }));
+                return newAnn;
+            });
         setAnnotations(loadedAnnotations);
         if (state.annotations.length > 0) {
             const firstAnn = state.annotations.find(a => a.type !== 'highlighter');
