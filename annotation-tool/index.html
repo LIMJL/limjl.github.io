@@ -4,10 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Markify (v6.5)</title>
-    <!-- 1. 引入外部 CSS 檔案 -->
-    <link rel="stylesheet" href="annotation-tool.css">
-    <!-- [新增] 加上這行來指定網站圖示，避免 404 錯誤 -->
-    <link rel="icon" href="icon.png" type="image/png">
+    <!-- [修改] 將路徑改為明確的相對路徑 -->
+    <link rel="stylesheet" href="./annotation-tool.css">
+    <link rel="icon" href="./icon.png" type="image/png">
 </head>
 <body>
 <div id="app-container">
@@ -31,10 +30,8 @@
         <button id="numberBtn" class="toggle-btn">123</button>
         <button id="ellipseBtn" class="toolbar-btn" title="橢圓 (按住 Shift 畫正圓)"></button>
         <button id="rectBtn" class="toolbar-btn" title="矩形 (按住 Shift 畫正方形)"></button>
-        <!-- FIX: Added 'toolbar-btn' class here -->
         <button id="arrowBtn" class="toolbar-btn arrow-btn"></button>
         <button id="highlighterBtn" class="toolbar-btn" title="螢光筆"></button>
-        <!-- FIX: Added 'toolbar-btn' class here -->
         <button id="textBtn" class="toolbar-btn text-btn"></button>
         <label><input type="color" id="colorPicker" value="#ff0000" title="標註顏色"></label>
         <div class="separator"></div>
@@ -87,29 +84,23 @@
         - <b>先前更新：</b> 行動裝置支援、動態圖片高度、復原/取消復原等功能。
     </p>
 
-    <!-- START: 新增的聯絡我們按鈕和對話框 -->
     <button id="contactBtn" class="toolbar-btn contact-btn" title="有問題？聯絡我們"></button>
-    <!-- END: 新增的聯絡我們按鈕和對話框 -->
 
 </div>
 
-<!-- START: 新增的彈出式對話框結構 (放在 #app-container 外層，確保層級最高) -->
 <div id="contactModalOverlay" class="modal-overlay">
     <div class="modal-content">
         <button id="closeModalBtn" class="modal-close-btn">&times;</button>
         <h3>有任何問題或意見嗎？</h3>
         <p>請填寫下方表格，我們會盡快與您聯繫。</p>
         <div class="form-wrapper">
-            <!-- 將您的 Google 表單嵌入程式碼的 src 貼到這裡 -->
-            <!-- 確保 embedded=true 在連結中 -->
             <iframe id="googleFormIframe" src="https://docs.google.com/forms/d/e/1FAIpQLScin9rNo5K6F8rHapCGsdBs8wtEDm3W-svCQAvpFnzgdiDfaQ/viewform?embedded=true" frameborder="0" marginheight="0" marginwidth="0">載入中…</iframe>
         </div>
     </div>
 </div>
-<!-- END: 新增的彈出式對話框結構 -->
 
-<!-- 2. 引入模組化的 JavaScript 主檔案 -->
-<script type="module" src="js/app.js"></script>
+<!-- [修改] 將路徑改為明確的相對路徑 -->
+<script type="module" src="./js/app.js"></script>
 
 </body>
 </html>
