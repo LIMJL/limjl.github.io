@@ -126,7 +126,9 @@ export function drawAnnotation(ann) {
             renderCtx.textAlign = 'center';
             renderCtx.textBaseline = 'middle';
             renderCtx.shadowBlur = 0;
-            renderCtx.fillText(ann.num, ann.x, ann.y);
+            // [修改] 在 y 座標上增加一個微小的位移 (半徑的 8%) 來實現視覺上的垂直置中
+            const verticalOffset = ann.y + radius * 0.08;
+            renderCtx.fillText(ann.num, ann.x, verticalOffset);
         } else if (ann.type === 'ellipse') {
             renderCtx.beginPath();
             renderCtx.ellipse(ann.x, ann.y, ann.rx, ann.ry, 0, 0, 2 * Math.PI);
